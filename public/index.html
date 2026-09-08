@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub 星标追踪</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>GitHub 星标追踪</h1>
+      <p class="subtitle">抓取高星项目，按星数与窗口增速筛选</p>
+    </div>
+    <span id="token-status" class="token-status">检测配额…</span>
+  </header>
+
+  <section class="controls">
+    <label>
+      最低星数
+      <input id="min-stars" type="number" min="0" step="1" placeholder="例如 1000" />
+    </label>
+    <label>
+      增速下限
+      <input id="min-growth" type="number" min="0" step="1" placeholder="例如 5" />
+    </label>
+    <label>
+      增速窗口
+      <select id="window">
+        <option value="day">日（近24h）</option>
+        <option value="week">周（近7天）</option>
+        <option value="month">月（近30天）</option>
+      </select>
+    </label>
+    <label>
+      语言
+      <select id="language"><option value="">全部</option></select>
+    </label>
+    <label>
+      排序
+      <select id="sort">
+        <option value="growth">增速</option>
+        <option value="stars">星数</option>
+        <option value="newest">新收录</option>
+        <option value="language">语言</option>
+        <option value="name">名称</option>
+      </select>
+    </label>
+    <label>
+      高亮阈值
+      <input id="highlight" type="number" min="0" step="1" value="50" />
+    </label>
+    <label class="check-label">
+      <input type="checkbox" id="pin-hot" /> 置顶高增长
+    </label>
+    <button id="apply" class="btn btn-secondary">应用筛选</button>
+    <button id="today" class="btn btn-secondary">今日新增榜</button>
+    <button id="export" class="btn btn-secondary">导出 CSV</button>
+    <button id="refresh" class="btn btn-primary">立即更新数据</button>
+    <span id="status" class="status"></span>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><div class="stat-value" id="stat-repos">–</div><div class="stat-label">收录项目</div></div>
+    <div class="stat"><div class="stat-value" id="stat-snapshots">–</div><div class="stat-label">快照数</div></div>
+    <div class="stat"><div class="stat-value" id="stat-last">–</div><div class="stat-label">最后更新</div></div>
+    <div class="stat"><div class="stat-value" id="stat-pending">–</div><div class="stat-label">待积累增速</div></div>
+    <div class="stat"><div class="stat-value" id="stat-next">–</div><div class="stat-label">下次自动抓取</div></div>
+  </section>
+
+  <div id="notice" class="notice">
+    <strong>说明：</strong>GitHub 不直接提供「每日新增星数」。
+    本站每次抓取会把项目星数存为快照，<strong>窗口增速 = 当前星数 − 窗口前最近一次快照星数</strong>。
+    服务运行期间会按定时任务自动抓取（见「下次自动抓取」），也可手动点击「立即更新」；首次抓取后增速显示「待积累」，第二次及以后出现差值。
+    点击项目行查看星标历史；增速超过「高亮阈值」的项目会高亮/置顶。
+  </div>
+
+  <div id="today-banner" class="today-banner hidden">
+    🔥 今日新增榜：仅显示今日获星的项目（增速 &gt; 0），按增速排序
+  </div>
+
+  <section class="list-header">
+    <h2 id="list-title">项目列表</h2>
+    <span id="list-count" class="list-count"></span>
+  </section>
+
+  <div id="error" class="error hidden"></div>
+
+  <div id="list" class="repo-list"></div>
+  <div id="pagination" class="pagination"></div>
+
+  <div id="detail-overlay" class="overlay hidden">
+    <div class="detail-modal" id="detail-modal">
+      <button class="detail-close" id="detail-close" aria-label="关闭">×</button>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
