@@ -1,0 +1,46 @@
+services:
+  tracker:
+    build: .
+    image: github-star-tracker:latest
+    container_name: github-star-tracker
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      # 从 .env 读取（不存在则为空，走匿名模式）
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      API_KEY: ${API_KEY:-}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 9 * * *}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-}
+      PORT: "3001"
+      # 切到 PostgreSQL：把下面两行取消注释，并启动 postgres 服务（--profile postgres）
+      # DB_DRIVER: postgres
+      # DATABASE_URL: postgres://gst:gst@postgres:5432/gst
+    volumes:
+      # 持久化数据库
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 可选：外部 PostgreSQL（docker compose --profile postgres up -d）
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    container_name: github-star-tracker-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gst
+      POSTGRES_PASSWORD: gst
+      POSTGRES_DB: gst
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gst -d gst"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
