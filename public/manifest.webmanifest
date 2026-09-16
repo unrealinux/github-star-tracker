@@ -1,0 +1,13 @@
+{
+  "name": "GitHub Star Tracker",
+  "short_name": "Star Tracker",
+  "description": "实时监控热门仓库的星数变化、增长与趋势分析",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f0f13",
+  "theme_color": "#0f0f13",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
