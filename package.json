@@ -3,12 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "test:watch": "node --test --watch tests/*.test.js",
+    "test:postgres": "DB_DRIVER=postgres node --test tests/*.test.js",
+    "start:postgres": "DB_DRIVER=postgres node server.js",
+    "migrate:postgres": "node scripts/migrate-to-postgres.mjs"
   },
   "dependencies": {
     "express": "^4.21.2",
     "node-cron": "^4.6.0"
+  },
+  "optionalDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "pg": "^8.23.0"
   }
 }
