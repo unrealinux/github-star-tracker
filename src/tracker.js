@@ -570,7 +570,7 @@ export function listLanguages() {
   return db.prepare(
     `SELECT language, COUNT(*) c FROM repos
      WHERE language IS NOT NULL AND language != ''
-     GROUP BY language ORDER BY c DESC`
+     GROUP BY language ORDER BY c DESC, language ASC`
   ).all();
 }
 
@@ -583,9 +583,10 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
   const win = WINDOWS[window] ? window : "day";
   const metricDef = metricOf(metric);
   const field = metricDef.field;
+  // 显式排序：不同后端行序不同，不排序会让并列名次的顺序随机
   const repoRows = minStars > 0
-    ? db.prepare("SELECT * FROM repos WHERE stars >= ?").all(minStars)
-    : db.prepare("SELECT * FROM repos").all();
+    ? db.prepare("SELECT * FROM repos WHERE stars >= ? ORDER BY id").all(minStars)
+    : db.prepare("SELECT * FROM repos ORDER BY id").all();
   const snapMap = loadSnapshotMap({ repoIds: repoRows.map((r) => r.id) });
 
   const rows = repoRows.map((r) => {
@@ -601,10 +602,11 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
     };
   });
 
-  const byStars = rows.slice().sort((a, b) => b.metricValue - a.metricValue).slice(0, limit);
+  // 并列时用 id 打破，保证 SQLite / PostgreSQL 给出相同结果
+  const byStars = rows.slice().sort((a, b) => b.metricValue - a.metricValue || a.id - b.id).slice(0, limit);
   const byGrowth = rows
     .filter((r) => r.avgDailyGrowth !== null)
-    .sort((a, b) => b.avgDailyGrowth - a.avgDailyGrowth)
+    .sort((a, b) => b.avgDailyGrowth - a.avgDailyGrowth || a.id - b.id)
     .slice(0, limit);
 
   const sampleDays = rows.reduce((m, r) => Math.max(m, r.avgSampleDays || 0), 0);

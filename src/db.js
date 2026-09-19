@@ -875,51 +875,60 @@ export function getMetricSnapshots(metricId) {
 
 // ── JSON 导出 / 导入（可跨实例迁移、合并或覆盖恢复）───────────────
 // 所有关联均使用自然键（full_name / source+key），不依赖本地自增 id，因此可跨库导入。
+// 每条查询都显式 ORDER BY 自然键：SQLite 与 PostgreSQL 的行序不同，
+// 不排序会让同一份数据的导出结果不可比，也无法用 diff 校验迁移结果。
 const EXPORT_VERSION = 2;
 
 export function exportData() {
   return {
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
-    settings: db.prepare("SELECT key, value FROM settings").all(),
-    custom_repos: db.prepare("SELECT full_name, user_note, added_at FROM custom_repos").all(),
+    settings: db.prepare("SELECT key, value FROM settings ORDER BY key").all(),
+    custom_repos: db.prepare("SELECT full_name, user_note, added_at FROM custom_repos ORDER BY user_id, full_name").all(),
     repos: db.prepare(
       `SELECT full_name, owner, name, url, description, language, homepage,
               stars, forks, open_issues, gh_created_at, first_seen_at, updated_at, is_custom
-       FROM repos`
+       FROM repos
+       ORDER BY full_name`
     ).all(),
     snapshots: db.prepare(
       `SELECT r.full_name, s.stars, s.forks, s.open_issues, s.captured_at
-       FROM snapshots s JOIN repos r ON r.id = s.repo_id`
+       FROM snapshots s JOIN repos r ON r.id = s.repo_id
+       ORDER BY r.full_name, s.captured_at`
     ).all(),
     favorites: db.prepare(
-      `SELECT r.full_name, f.added_at FROM favorites f JOIN repos r ON r.id = f.repo_id`
+      `SELECT r.full_name, f.added_at FROM favorites f JOIN repos r ON r.id = f.repo_id ORDER BY r.full_name, f.added_at`
     ).all(),
     alerts: db.prepare(
       `SELECT r.full_name, a.threshold, a.growth, a.current_stars, a.triggered_at, a.read, a.kind, a.message
-       FROM alerts a JOIN repos r ON r.id = a.repo_id`
+       FROM alerts a JOIN repos r ON r.id = a.repo_id
+       ORDER BY r.full_name, a.triggered_at, a.id`
     ).all(),
     tracked_metrics: db.prepare(
-      `SELECT source, key, label, url, unit, current_value, first_seen_at, updated_at FROM tracked_metrics`
+      `SELECT source, key, label, url, unit, current_value, first_seen_at, updated_at FROM tracked_metrics
+       ORDER BY source, key`
     ).all(),
     metric_snapshots: db.prepare(
       `SELECT m.source, m.key, ms.value, ms.captured_at
-       FROM metric_snapshots ms JOIN tracked_metrics m ON m.id = ms.metric_id`
+       FROM metric_snapshots ms JOIN tracked_metrics m ON m.id = ms.metric_id
+       ORDER BY m.source, m.key, ms.captured_at`
     ).all(),
-    indices: db.prepare("SELECT user_id, name, spec, created_at FROM indices").all(),
+    indices: db.prepare("SELECT user_id, name, spec, created_at FROM indices ORDER BY user_id, name").all(),
     tracked_queries: db.prepare(
-      "SELECT user_id, label, query, member_count, last_run_at, created_at FROM tracked_queries"
+      "SELECT user_id, label, query, member_count, last_run_at, created_at FROM tracked_queries ORDER BY user_id, label"
     ).all(),
     query_members: db.prepare(
       `SELECT q.user_id, q.label, r.full_name
        FROM query_members qm JOIN tracked_queries q ON q.id = qm.query_id
-       JOIN repos r ON r.id = qm.repo_id`
+       JOIN repos r ON r.id = qm.repo_id
+       ORDER BY q.user_id, q.label, r.full_name`
     ).all(),
     push_subscriptions: db.prepare(
       `SELECT user_id, endpoint, p256dh, auth, user_agent, created_at, last_ok_at, last_error
-       FROM push_subscriptions`
+       FROM push_subscriptions
+       ORDER BY user_id, endpoint`
     ).all(),
-    users: db.prepare("SELECT id, username, password_hash, role, created_at FROM users").all(),
+    users: db.prepare("SELECT id, username, password_hash, role, created_at FROM users ORDER BY username").all(),
   };
 }
 

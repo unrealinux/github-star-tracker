@@ -25,7 +25,7 @@ const {
   replaceQueryMembers, getQueryMemberIds,
   renameRepo, markRepoStale, clearRepoStale, rollupOldSnapshots,
 } = await import("../src/db.js");
-const { listRepos, predictGrowth, getRankChanges, getLanguageTrends, getStats, getLeaderboard, getSurges, listReposAt, getBadgeData, evaluateAlertRules, compareRepos, getOverview, findSimilarRepos, getAnomalies, getRisingStars, getSparkData, getEvents, backtestAlerts,
+const { listRepos, predictGrowth, getRankChanges, listLanguages, getLanguageTrends, getStats, getLeaderboard, getSurges, listReposAt, getBadgeData, evaluateAlertRules, compareRepos, getOverview, findSimilarRepos, getAnomalies, getRisingStars, getSparkData, getEvents, backtestAlerts,
   resolveIndexMembers, getIndexSeries, getQueryAggregate, refreshTrackedQueries, refreshCustomRepos, getRepoHistory } = await import("../src/tracker.js");
 
 // ── 测试数据填充 ──
@@ -1608,5 +1608,70 @@ describe("JSON 导出覆盖全部表（第八批）", () => {
 
     db.exec("DELETE FROM query_members; DELETE FROM tracked_queries; DELETE FROM indices");
     db.exec("DELETE FROM push_subscriptions; DELETE FROM users");
+  });
+});
+
+describe("查询结果定序（SQLite / PostgreSQL 必须一致）", () => {
+  // 背景：SQLite 按 rowid 返回、PostgreSQL 按堆物理序返回，
+  // 没有显式 ORDER BY 的查询在两个后端上顺序不同，并列名次尤其不稳定。
+  before(() => {
+    db.exec("DELETE FROM snapshots; DELETE FROM repos; DELETE FROM favorites");
+    db.exec("DELETE FROM custom_repos; DELETE FROM alerts; DELETE FROM settings");
+    db.exec("DELETE FROM tracked_metrics; DELETE FROM metric_snapshots");
+
+    // 故意按非字典序插入：导出必须按自然键而不是插入顺序
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)"
+    );
+    ins.run("zeta/one", "one", "zeta", "u", "Zeta", 1000);
+    ins.run("alpha/two", "two", "alpha", "u", "Zeta", 1000);
+    ins.run("mid/three", "three", "mid", "u", "Alpha", 1000);
+    ins.run("beta/four", "four", "beta", "u", "Alpha", 1000);
+    ins.run("omega/five", "five", "omega", "u", "Mid", 1000);
+    ins.run("delta/six", "six", "delta", "u", "Mid", 1000);
+
+    // 所有仓库星数相同、增长相同 → 排行榜必然出现并列
+    const ids = db.prepare("SELECT id FROM repos").all();
+    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
+    const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString();
+    for (const { id } of ids) {
+      snap.run(id, 1000, iso(3));
+      snap.run(id, 1300, iso(0));
+    }
+
+    setSetting("zzzKey", "1");
+    setSetting("aaaKey", "1");
+  });
+
+  test("exportData：repos 按 full_name 升序", () => {
+    const names = exportData().repos.map((r) => r.full_name);
+    assert.deepEqual(names, [...names].sort(), "应使用自然键排序，而非插入/物理顺序");
+  });
+
+  test("exportData：snapshots 按 (full_name, captured_at) 升序", () => {
+    const keys = exportData().snapshots.map((s) => `${s.full_name}|${s.captured_at}`);
+    assert.deepEqual(keys, [...keys].sort());
+  });
+
+  test("exportData：settings 按 key 升序", () => {
+    const keys = exportData().settings.map((s) => s.key);
+    assert.deepEqual(keys, [...keys].sort());
+  });
+
+  test("listLanguages：计数相同时按语言名升序", () => {
+    const rows = listLanguages().filter((r) => ["Alpha", "Mid", "Zeta"].includes(r.language));
+    assert.deepEqual(rows.map((r) => r.c), [2, 2, 2], "三个语言应计数相同（构造出并列）");
+    assert.deepEqual(rows.map((r) => r.language), ["Alpha", "Mid", "Zeta"], "并列应按语言名升序");
+  });
+
+  test("getLeaderboard：并列名次按 id 升序（总星榜与增长榜）", () => {
+    const asc = (arr) => arr.every((v, i) => i === 0 || arr[i - 1] <= v);
+    const lb = getLeaderboard({ limit: 10 });
+
+    assert.equal(lb.byStars.length, 6, "6 个仓库星数相同，应全部入榜");
+    assert.ok(asc(lb.byStars.map((r) => r.id)), "byStars 并列应按 id 升序");
+
+    assert.equal(lb.byGrowth.length, 6, "6 个仓库增长相同，应全部入增长榜");
+    assert.ok(asc(lb.byGrowth.map((r) => r.id)), "byGrowth 并列应按 id 升序");
   });
 });
