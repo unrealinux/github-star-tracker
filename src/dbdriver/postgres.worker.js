@@ -78,8 +78,20 @@ const handlers = {
 // 所有请求都等初始化完成后再执行，避免 backend 尚未就绪
 const readyPromise = init();
 
+/**
+ * 把异常统一转成可读文本。
+ * 之前错误路径只传了 3 个参数，消息落到了 result、error 恒为 undefined，
+ * 主线程只能报 `Error: undefined` —— PostgreSQL 的任何故障都无法定位。
+ */
+const describeError = (e) => {
+  if (e instanceof Error) return e.message || e.stack || e.name || "未知错误";
+  if (typeof e === "string") return e;
+  if (e === undefined || e === null) return "未知错误（原始异常为空）";
+  try { return JSON.stringify(e) ?? String(e); } catch { return String(e); }
+};
+
 const reply = (id, ok, result, error) => {
-  port.postMessage(ok ? { id, ok, result } : { id, ok: false, error: String(error) });
+  port.postMessage(ok ? { id, ok, result } : { id, ok: false, error: describeError(error) });
   Atomics.store(i32, 0, 1);
   Atomics.notify(i32, 0);
 };
@@ -90,10 +102,10 @@ port.on("message", (msg) => {
     .then(() => readyPromise)
     .then(() => handlers[msg.op] ? handlers[msg.op](msg) : Promise.reject(new Error(`未知操作: ${msg.op}`)))
     .then((result) => reply(msg.id, true, result))
-    .catch((e) => reply(msg.id, false, e.message || e));
+    .catch((e) => reply(msg.id, false, null, e));
 });
 
 // 初始化完成后通知主线程（主线程会先收到这条 id=-1 的消息）
 readyPromise
   .then(() => reply(-1, true, { ready: true, mode }))
-  .catch((e) => reply(-1, false, `数据库初始化失败: ${e.message}`));
+  .catch((e) => reply(-1, false, null, `数据库初始化失败: ${describeError(e)}`));
