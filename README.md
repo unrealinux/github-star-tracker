@@ -327,6 +327,8 @@ npm run test:watch
 
 覆盖：增长计算、过滤/分页、排名变化、预测、数据库操作、告警规则、多渠道编码、回填、导入导出、保存视图，以及 `tests/api.test.js` 中的 HTTP 路由集成测试（真启动 Express + fetch）。
 
+要在真实 PostgreSQL 上验证（起库、每文件独立库、迁移后两端对拍、预期差异与已知坑）：见 [`docs/verification-checklist.md`](docs/verification-checklist.md)。
+
 ## 📁 项目结构
 
 ```
@@ -355,6 +357,8 @@ npm run test:watch
 │   └── logger.js          # 结构化日志
 ├── scripts/
 │   └── migrate-to-postgres.mjs  # SQLite → PostgreSQL 数据迁移
+├── docs/
+│   └── verification-checklist.md # 真实 PostgreSQL 验证清单（起库/对拍/已知坑）
 ├── tests/
 │   ├── core.test.js       # 核心逻辑单元测试
 │   └── api.test.js        # HTTP 路由集成测试
