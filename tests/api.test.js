@@ -350,6 +350,9 @@ describe("运维健壮性端点（第四批）", () => {
     const body = await (await api("/api/stats")).json();
     assert.equal(typeof body.staleCount, "number");
     assert.ok("githubQuota" in body);
+    // token 必须上报真实状态，而不是只说「有没有配置」
+    assert.ok("tokenState" in body, "应暴露 tokenState");
+    assert.ok(["none", "unknown", "ok", "invalid"].includes(body.tokenState), `tokenState 取值非法：${body.tokenState}`);
   });
 
   test("PUT /api/settings 接受运维类设置", async () => {

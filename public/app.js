@@ -106,8 +106,18 @@ function renderStats(stats) {
   $("stat-last").textContent = timeAgo(stats.lastRefresh);
   const auto = stats.auto || {};
   $("stat-next").textContent = !auto.enabled ? "已停用" : timeUntil(auto.nextRun);
-  $("token-status").textContent = stats.tokenConfigured ? "Token ✅" : "匿名模式";
-  $("token-status").className = "token-status " + (stats.tokenConfigured ? "ok" : "warn");
+  // token 状态如实展示：只看「有没有配置」会把一个失效 token 显示成 ✅
+  const tokenState = stats.tokenState || (stats.tokenConfigured ? "unknown" : "none");
+  const TOKEN_VIEW = {
+    ok:      { text: "Token ✅",            cls: "ok",   title: "GITHUB_TOKEN 已校验可用" },
+    invalid: { text: "Token 失效·已回退匿名", cls: "warn", title: "GitHub 返回 401，已自动改用匿名请求（配额较低）。请更换 GITHUB_TOKEN" },
+    none:    { text: "匿名模式",            cls: "warn", title: "未配置 GITHUB_TOKEN，搜索配额仅约 10 次/分钟" },
+    unknown: { text: "Token 待验证",         cls: "warn", title: "已配置 GITHUB_TOKEN，尚未校验" },
+  };
+  const tv = TOKEN_VIEW[tokenState] || TOKEN_VIEW.none;
+  $("token-status").textContent = tv.text;
+  $("token-status").className = "token-status " + tv.cls;
+  $("token-status").title = tv.title;
   const q = stats.quota || { used: 0, limit: 60, pct: 0 };
   $("quota-badge").textContent = `配额: ${q.used}/${q.limit} (${q.pct}%)`;
   $("quota-badge").style.color = q.pct >= 90 ? "var(--red)" : q.pct >= 70 ? "var(--orange)" : "var(--text-2)";

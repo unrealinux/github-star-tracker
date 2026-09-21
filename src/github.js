@@ -29,12 +29,52 @@ function parseRateLimit(res) {
   };
 }
 
-function headersFor(token, accept) {
+// token 状态：none（未配置）/ unknown（尚未验证）/ ok / invalid（被 GitHub 拒绝）
+// 一个过期或被吊销的 token 如果不降级，会让整条采集链路停摆，
+// 而「只判断有没有配置」的指示器还会显示 ✅，反而误导。
+let tokenState = "unknown";
+
+/** 当前 token 状态，供 UI 如实展示 */
+export function getTokenState() {
+  return tokenState;
+}
+
+/** 重置 token 状态（测试用；换了 token 后也可调用） */
+export function resetTokenState() {
+  tokenState = "unknown";
+}
+
+function headersFor(token, accept, { force = false } = {}) {
+  // 一旦判定失效，后续请求一律匿名，避免每次抓取都白费一次 401
+  const sendToken = Boolean(token) && (force || tokenState !== "invalid");
   return {
     Accept: accept || "application/vnd.github+json",
     "User-Agent": "github-star-tracker",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(sendToken ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+/**
+ * 主动探测 token 是否有效（/rate_limit 不消耗配额）。
+ * 用 `force` 保证探测始终带上 token —— 否则一旦标记失效就永远测不出问题。
+ * @returns {Promise<"none"|"ok"|"invalid"|"unknown">}
+ */
+export async function checkToken(token) {
+  if (!token) {
+    tokenState = "none";
+    return tokenState;
+  }
+  try {
+    const res = await fetch(`${BASE}/rate_limit`, {
+      headers: headersFor(token, null, { force: true }),
+    });
+    if (res.ok) tokenState = "ok";
+    else if (res.status === 401) tokenState = "invalid";
+    // 限流 / 5xx / 网络异常：不改判定，下次再测
+  } catch {
+    /* 网络不可用，保持原状态 */
+  }
+  return tokenState;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -54,12 +94,16 @@ const repoPath = (fullName) => String(fullName).split("/").map(encodeURIComponen
 async function requestJson(url, { token, accept, allow404 = false } = {}) {
   const cached = etagCache.get(url);
   for (let attempt = 0; attempt <= RETRY_TIMES; attempt++) {
+    const useToken = Boolean(token) && tokenState !== "invalid";
     const res = await fetch(url, {
       headers: {
         ...headersFor(token, accept),
         ...(cached ? { "If-None-Match": cached.etag } : {}),
       },
     });
+
+    if (!token) tokenState = "none";
+    else if (useToken && res.status !== 401) tokenState = "ok";
 
     const rate = parseRateLimit(res);
     if (rate) lastQuota = { ...(lastQuota || {}), [rate.resource]: rate, last: rate };
@@ -82,6 +126,14 @@ async function requestJson(url, { token, accept, allow404 = false } = {}) {
       const delay = retryAfter ? Number(retryAfter) * 1000 : RETRY_DELAY_MS * Math.pow(2, attempt);
       console.warn(`[github] ${res.status} on attempt ${attempt + 1}, retrying in ${Math.round(delay / 1000)}s...`);
       await sleep(delay);
+      continue;
+    }
+
+    if (res.status === 401 && useToken) {
+      // token 过期/被吊销：标记后立刻匿名重试，而不是把整条采集链路停摆
+      tokenState = "invalid";
+      console.warn("[github] GitHub 拒绝了当前 token（401），已回退匿名模式；请更新 GITHUB_TOKEN");
+      attempt--;   // 这次降级不消耗重试次数
       continue;
     }
 

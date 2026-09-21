@@ -36,7 +36,7 @@ import { refreshExternalMetrics, listExternalMetrics, getExternalMetricHistory }
 import { backfillRepo, backfillMany, resolveBackfillScope } from "./src/backfill.js";
 import { runDigest } from "./src/digest.js";
 import { getVapidKeys, subscribePush, unsubscribePush, sendPushToAll } from "./src/webpush.js";
-import { fetchRepoDetails, getLastQuota } from "./src/github.js";
+import { fetchRepoDetails, getLastQuota, getTokenState, checkToken } from "./src/github.js";
 import { logger } from "./src/logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -321,6 +321,7 @@ function publicSettings(userId = 0) {
     sourceIntervals:   s.sourceIntervals || "{}",
     pushCount:         countPushSubscriptions(userId),
     tokenConfigured: Boolean(TOKEN),
+    tokenState:      getTokenState(),
     authEnabled:     Boolean(API_KEY),
   };
 }
@@ -741,6 +742,7 @@ app.get("/api/stats", (req, res) => {
     ...getStats(req.userId || 0),
     quota: getApiQuotaInfo(),
     tokenConfigured: Boolean(TOKEN),
+    tokenState: getTokenState(),
     authEnabled: Boolean(API_KEY),
     auto: {
       schedule: CRON,
@@ -1093,6 +1095,17 @@ export function startServer() {
       cron: cronValid ? CRON : "disabled",
     });
   });
+
+  // 启动时探一次 token 是否真的有效（/rate_limit 不消耗配额）。
+  // 不阻塞监听，失败也不影响启动；只为了让 UI 不把「配了个坏 token」显示成 ✅。
+  if (TOKEN) {
+    checkToken(TOKEN)
+      .then((state) => {
+        if (state === "invalid") logger.warn("GITHUB_TOKEN 无效（GitHub 返回 401），已回退匿名模式，请更换 token");
+        else if (state === "ok") logger.info("GITHUB_TOKEN 校验通过");
+      })
+      .catch(() => { /* 探测失败不影响启动 */ });
+  }
 
   function shutdown(signal) {
     logger.info(`收到 ${signal}，正在关闭…`);
