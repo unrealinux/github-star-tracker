@@ -16,7 +16,7 @@ process.env.DB_PATH = join(tmp, "api.db");
 process.env.API_KEY = "test-key-123";
 process.env.LOG_LEVEL = "error";
 
-const { app } = await import("../server.js");
+const { app, resolveToken } = await import("../server.js");
 const { db, closeDb } = await import("../src/db.js");
 
 let server;
@@ -642,5 +642,23 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
     const me = users.users.find((u) => u.username === "alice");
     const res = await asUser(adminSession, `/api/auth/users/${me.id}`, { method: "DELETE" });
     assert.equal(res.status, 400);
+  });
+});
+
+describe("token 环境变量解析（第八批）", () => {
+  test("优先用 GITHUB_TOKEN", () => {
+    assert.deepEqual(resolveToken({ GITHUB_TOKEN: "ghp_a", GH_TOKEN: "gho_b" }), {
+      token: "ghp_a", source: "GITHUB_TOKEN",
+    });
+  });
+
+  test("GITHUB_TOKEN 为空/缺失时回退 GH_TOKEN（可直接用 gh auth token 提供）", () => {
+    assert.deepEqual(resolveToken({ GH_TOKEN: "gho_b" }), { token: "gho_b", source: "GH_TOKEN" });
+    assert.deepEqual(resolveToken({ GITHUB_TOKEN: "", GH_TOKEN: "gho_b" }), { token: "gho_b", source: "GH_TOKEN" });
+  });
+
+  test("两者都为空时返回空 token 与 null 来源（判定为匿名模式）", () => {
+    assert.deepEqual(resolveToken({}), { token: "", source: null });
+    assert.deepEqual(resolveToken({ GITHUB_TOKEN: "", GH_TOKEN: "" }), { token: "", source: null });
   });
 });

@@ -109,10 +109,10 @@ function renderStats(stats) {
   // token 状态如实展示：只看「有没有配置」会把一个失效 token 显示成 ✅
   const tokenState = stats.tokenState || (stats.tokenConfigured ? "unknown" : "none");
   const TOKEN_VIEW = {
-    ok:      { text: "Token ✅",            cls: "ok",   title: "GITHUB_TOKEN 已校验可用" },
-    invalid: { text: "Token 失效·已回退匿名", cls: "warn", title: "GitHub 返回 401，已自动改用匿名请求（配额较低）。请更换 GITHUB_TOKEN" },
-    none:    { text: "匿名模式",            cls: "warn", title: "未配置 GITHUB_TOKEN，搜索配额仅约 10 次/分钟" },
-    unknown: { text: "Token 待验证",         cls: "warn", title: "已配置 GITHUB_TOKEN，尚未校验" },
+    ok:      { text: "Token ✅",            cls: "ok",   title: "token 已校验可用" },
+    invalid: { text: "Token 失效·已回退匿名", cls: "warn", title: "GitHub 返回 401，已自动改用匿名请求（配额较低）。请更换 GITHUB_TOKEN 或 GH_TOKEN" },
+    none:    { text: "匿名模式",            cls: "warn", title: "未配置 GITHUB_TOKEN / GH_TOKEN，搜索配额仅约 10 次/分钟" },
+    unknown: { text: "Token 待验证",         cls: "warn", title: "已配置 token，尚未校验" },
   };
   const tv = TOKEN_VIEW[tokenState] || TOKEN_VIEW.none;
   $("token-status").textContent = tv.text;

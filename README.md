@@ -108,6 +108,7 @@ npm start
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `GITHUB_TOKEN` | GitHub 个人访问令牌，**强烈建议配置**（匿名搜索仅 10 次/分钟） | 空 |
+| `GH_TOKEN` | `GITHUB_TOKEN` 为空时的回退变量（gh CLI 的约定名） | 空 |
 | `PORT` | 服务端口 | `3001` |
 | `CRON_SCHEDULE` | 定时抓取的 cron 表达式 | `0 9 * * *`（每天 9:00） |
 | `API_KEY` | 若设置，则所有 `/api/*` 需要该密钥 | 空（不启用认证） |
@@ -122,6 +123,20 @@ npm start
 2. **Generate new token (classic)**
 3. 无需勾选任何权限（仅用于提升 API 配额）
 4. 填入 `.env` 的 `GITHUB_TOKEN`
+
+已经用 gh CLI 登录过的话，不用另外建 token，直接用它的凭据即可：
+
+```bash
+export GITHUB_TOKEN=$(gh auth token)   # 或写入 .env 的 GH_TOKEN=
+```
+
+`GITHUB_TOKEN` 优先，为空时自动回退读 `GH_TOKEN`。注意 gh 的 OAuth token 权限较宽
+（通常含 `repo`），如果要最小权限，还是建一个只读的 fine-grained token 更合适。
+
+> **优先级陷阱**：`GITHUB_TOKEN` 优先于 `GH_TOKEN`，且 **shell 里 `export` 的变量优先于 `.env`**。
+> 如果 `.env` 里还留着一个失效的 `GITHUB_TOKEN`，那么只导出 `GH_TOKEN` 不会生效 ——
+> 要么把 `.env` 里那行清空，要么直接 `export GITHUB_TOKEN=$(gh auth token)`。
+> 启动日志会打印 `tokenSource`，直接告诉你实际生效的是哪个变量。
 
 > 认证用户搜索配额 30 次/分钟，匿名仅 10 次/分钟。
 > 热门榜每轮抓取消耗 3 次搜索配额，每个「生态/Topic 追踪」额外消耗 1 次，请控制追踪数量。

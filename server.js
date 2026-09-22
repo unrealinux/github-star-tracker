@@ -67,7 +67,20 @@ app.use("/api", (_req, res, next) => {
 app.use(express.static(join(__dirname, "public")));
 
 const PORT      = Number(process.env.PORT) || 3001;
-const TOKEN     = process.env.GITHUB_TOKEN || "";
+
+/**
+ * 解析 GitHub token：优先 `GITHUB_TOKEN`，为空时回退到 gh CLI 约定的 `GH_TOKEN`。
+ * 这样就能直接 `GITHUB_TOKEN=$(gh auth token) node server.js`，
+ * 而不必去网页手建 token。纯函数，便于测试。
+ * @returns {{ token: string, source: "GITHUB_TOKEN"|"GH_TOKEN"|null }}
+ */
+export function resolveToken(env = process.env) {
+  if (env.GITHUB_TOKEN) return { token: env.GITHUB_TOKEN, source: "GITHUB_TOKEN" };
+  if (env.GH_TOKEN) return { token: env.GH_TOKEN, source: "GH_TOKEN" };
+  return { token: "", source: null };
+}
+
+const { token: TOKEN, source: TOKEN_SOURCE } = resolveToken();
 const API_KEY   = process.env.API_KEY || "";
 const DEFAULT_MIN_STARS = 1000;
 const DEFAULT_MIN_GROWTH = 0;
@@ -1091,6 +1104,7 @@ export function startServer() {
     logger.info("GitHub Star Tracker 已启动", {
       url: `http://localhost:${PORT}`,
       token: Boolean(TOKEN),
+      tokenSource: TOKEN_SOURCE,
       auth: Boolean(API_KEY),
       cron: cronValid ? CRON : "disabled",
     });
@@ -1101,8 +1115,8 @@ export function startServer() {
   if (TOKEN) {
     checkToken(TOKEN)
       .then((state) => {
-        if (state === "invalid") logger.warn("GITHUB_TOKEN 无效（GitHub 返回 401），已回退匿名模式，请更换 token");
-        else if (state === "ok") logger.info("GITHUB_TOKEN 校验通过");
+        if (state === "invalid") logger.warn(`${TOKEN_SOURCE} 无效（GitHub 返回 401），已回退匿名模式，请更换 token`);
+        else if (state === "ok") logger.info(`${TOKEN_SOURCE} 校验通过`);
       })
       .catch(() => { /* 探测失败不影响启动 */ });
   }

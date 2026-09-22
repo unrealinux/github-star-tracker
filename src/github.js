@@ -132,7 +132,7 @@ async function requestJson(url, { token, accept, allow404 = false } = {}) {
     if (res.status === 401 && useToken) {
       // token 过期/被吊销：标记后立刻匿名重试，而不是把整条采集链路停摆
       tokenState = "invalid";
-      console.warn("[github] GitHub 拒绝了当前 token（401），已回退匿名模式；请更新 GITHUB_TOKEN");
+      console.warn("[github] GitHub 拒绝了当前 token（401），已回退匿名模式；请更新 GITHUB_TOKEN 或 GH_TOKEN");
       attempt--;   // 这次降级不消耗重试次数
       continue;
     }
