@@ -397,15 +397,19 @@ function computeGrowth(repoValue, snaps, now, window, field = "stars") {
   const cfg = windowOf(window);
   const windowStart = now - cfg.ms;
 
-  let baseValue = null;
+  let baseSnap = null;
   for (let i = snaps.length - 1; i >= 0; i--) {
-    if (Date.parse(snaps[i].captured_at) <= windowStart) { baseValue = snaps[i][field]; break; }
+    if (Date.parse(snaps[i].captured_at) <= windowStart) { baseSnap = snaps[i]; break; }
   }
 
   let growth = null, label = "待积累";
-  if (baseValue !== null) {
-    growth = repoValue - baseValue;
-    label = cfg.label;
+  if (baseSnap !== null) {
+    growth = repoValue - baseSnap[field];
+    // 基准只保证「不晚于窗口起点」，不保证「接近窗口长度」：
+    // 采集中断过时它可能已经是很多天前，差值覆盖的是整段跨度。
+    // 直接套 cfg.label 会把 7 天的增长谎报成「近24h」，所以按真实跨度标注。
+    const days = Math.round((now - Date.parse(baseSnap.captured_at)) / 86400000);
+    label = days <= 1 ? cfg.label : `近${days}天`;
   } else if (snaps.length >= 2) {
     if (window === "day") {
       growth = repoValue - snaps[snaps.length - 2][field];

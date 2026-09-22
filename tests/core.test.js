@@ -131,7 +131,9 @@ describe("增长计算", () => {
     const r = listRepos({ minStars: 0, minGrowth: 0, language: "Python", sort: "stars", window: "day", page: 1, pageSize: 10 });
     const a = r.repos[0];
     assert.equal(a.growth, 1000);           // 4000 → 5000
-    assert.equal(a.growthLabel, "近24h");
+    // 基准快照是 3 天前（seed 用 iso(3)），所以标签必须如实写 3 天，
+    // 不能写「近24h」—— 那是把 3 天的增长谎报成一天。
+    assert.equal(a.growthLabel, "近3天");
   });
 
   test("负增长被正确计算", () => {
@@ -155,6 +157,48 @@ describe("增长计算", () => {
     const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10, todayOnly: true });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].growth > 0, true);
+  });
+});
+
+describe("增长窗口标签：采集中断后不得谎报近24h", () => {
+  // 窗口基准取的是「不晚于窗口起点」的最近快照。采集中断过时，
+  // 那个快照可能已经是很久以前 —— 差值覆盖的是整段跨度，
+  // 若仍标窗口标签，就会把 7 天的增长说成 24 小时。
+  before(() => {
+    db.exec("DELETE FROM snapshots; DELETE FROM repos;");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)"
+    );
+    ins.run("gap/seven", "seven", "gap", "u", "Go", 10000);
+    ins.run("gap/oneday", "oneday", "gap", "u", "Go", 10000);
+
+    const ids = db.prepare("SELECT id, full_name FROM repos").all();
+    const idOf = (n) => ids.find((r) => r.full_name === n).id;
+    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
+    const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString();
+
+    // 中断 7 天：只有 7 天前与现在两个快照
+    snap.run(idOf("gap/seven"), 9000, iso(7));
+    snap.run(idOf("gap/seven"), 10000, iso(0));
+    // 正常：约 25 小时前的基线（略盖过 24h 窗口）
+    snap.run(idOf("gap/oneday"), 9000, iso(25 / 24));
+    snap.run(idOf("gap/oneday"), 10000, iso(0));
+  });
+
+  const find = (name) => listRepos({
+    minStars: 0, minGrowth: 0, language: "Go", sort: "stars", window: "day", page: 1, pageSize: 10,
+  }).repos.find((r) => r.full_name === name);
+
+  test("中断 7 天：标「近7天」，而不是「近24h」", () => {
+    const r = find("gap/seven");
+    assert.equal(r.growth, 1000);
+    assert.equal(r.growthLabel, "近7天");
+  });
+
+  test("正常约 24h 基线：仍标「近24h」（不要矫柉过正）", () => {
+    const r = find("gap/oneday");
+    assert.equal(r.growth, 1000);
+    assert.equal(r.growthLabel, "近24h");
   });
 });
 
