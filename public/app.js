@@ -1012,12 +1012,18 @@ async function loadAlerts() {
     if (el) {
       el.innerHTML = recent.length === 0
         ? '<p class="muted">暂无告警。当仓库 24h 内新增星数达到阈值时会在此显示。</p>'
-        : recent.map((a) => `
+        : recent.map((a) => {
+          // 掉星告警的 growth 是负数，不能无条件加 "+"（会显示成 "+-500"）；
+          // 颜色也要跟着走，否则掉星和涨星长得一模一样。
+          const down = a.growth < 0;
+          const sign = down ? "" : "+";
+          return `
           <div class="alert-item ${a.read ? "" : "unread"}">
             <span class="ai-name">${escapeHtml(a.full_name)}</span>
-            <span class="ai-growth">+${fmt(a.growth)} 星</span>
+            <span class="ai-growth${down ? " down" : ""}">${sign}${fmt(a.growth)} 星</span>
             <span class="ai-time">${timeAgo(a.triggered_at)}</span>
-          </div>`).join("");
+          </div>`;
+        }).join("");
     }
   } catch (e) { console.error("loadAlerts:", e); }
 }

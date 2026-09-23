@@ -347,6 +347,7 @@ body {
 .alert-item.unread { border-left: 3px solid var(--orange); }
 .alert-item .ai-name { color: var(--accent); font-weight: 600; }
 .alert-item .ai-growth { color: var(--green); font-weight: 650; }
+.alert-item .ai-growth.down { color: var(--red); }
 .alert-item .ai-time { margin-left: auto; color: var(--text-2); font-size: 11px; }
 
 /* ── 🏆 排行榜 ── */
