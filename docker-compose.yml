@@ -9,6 +9,8 @@ services:
     environment:
       # 从 .env 读取（不存在则为空，走匿名模式）
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      # 回退变量：GITHUB_TOKEN 为空时才会用它（不传的话容器里就只会走匿名）
+      GH_TOKEN: ${GH_TOKEN:-}
       API_KEY: ${API_KEY:-}
       CRON_SCHEDULE: ${CRON_SCHEDULE:-0 9 * * *}
       LOG_LEVEL: ${LOG_LEVEL:-info}
