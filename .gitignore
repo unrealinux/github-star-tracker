@@ -5,6 +5,11 @@ data/
 *.db-shm
 .env
 .env.local
+# 任何 .env 的副本/备份/编辑器残留都不该进仓库（.env.bak 曾含真实 token）
+.env.*
+!.env.example
+*.swp
+*.swo
 nssm/
 logs/
 *.log
