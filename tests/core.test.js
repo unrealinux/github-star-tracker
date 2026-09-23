@@ -25,7 +25,7 @@ const {
   replaceQueryMembers, getQueryMemberIds,
   renameRepo, markRepoStale, clearRepoStale, rollupOldSnapshots,
 } = await import("../src/db.js");
-const { listRepos, predictGrowth, getRankChanges, listLanguages, getLanguageTrends, getStats, getLeaderboard, getSurges, listReposAt, getBadgeData, evaluateAlertRules, compareRepos, getOverview, findSimilarRepos, getAnomalies, getRisingStars, getSparkData, getEvents, backtestAlerts,
+const { listRepos, predictGrowth, getRankChanges, listLanguages, getLanguageTrends, getStats, getLeaderboard, getSurges, listReposAt, getBadgeData, evaluateAlertRules, windowBaseline, compareRepos, getOverview, findSimilarRepos, getAnomalies, getRisingStars, getSparkData, getEvents, backtestAlerts,
   resolveIndexMembers, getIndexSeries, getQueryAggregate, refreshTrackedQueries, refreshCustomRepos, getRepoHistory } = await import("../src/tracker.js");
 
 // ── 测试数据填充 ──
@@ -652,6 +652,83 @@ describe("告警规则 evaluateAlertRules（B2）", () => {
 
   test("无基线不触发", () => {
     assert.equal(evaluateAlertRules({ fullName: "a/b", repoStars: 5000, baseStars: null, prevStars: null, cfg: base }).length, 0);
+  });
+});
+
+describe("告警按日均归一（采集中断不再放大）", () => {
+  // 阈值是「日增星数」；基准可能是多天前的快照，拿整段跨度直接比阈值
+  // 会把 N 天的增量当成一天，产生大量假告警。
+  const base = { threshold: 50, repoThresholds: {}, alertOnDrop: false, dropThreshold: 50, alertOnMilestone: false };
+
+  test("中断 7 天：存的是日均，而不是整段跨度", () => {
+    // 224,009 → 232,833，历时 7.3 天（真实场景：deepseek-ai/deepseek-harness）
+    const r = evaluateAlertRules({
+      fullName: "a/b", repoStars: 232833, baseStars: 224009, baseDays: 7.3, prevStars: 224009, cfg: base,
+    });
+    assert.equal(r.length, 1);
+    assert.equal(r[0].kind, "growth");
+    assert.equal(r[0].growth, 1209, "应与整段跨度 8824 区分开（8824 / 7.3 天）");
+    assert.ok(r[0].days > 7, "应带上真实跨度");
+  });
+
+  test("中断 7 天但日均未达阈值：不误报（修前会报）", () => {
+    const cfg = { ...base, threshold: 500 };
+    // 7 天涨 700：整段跨度 700 会误触发，日均 100 不应触发
+    const r = evaluateAlertRules({
+      fullName: "a/b", repoStars: 10700, baseStars: 10000, baseDays: 7, prevStars: 10000, cfg,
+    });
+    assert.equal(r.length, 0);
+  });
+
+  test("掉星同样按日均归一", () => {
+    const cfg = { ...base, threshold: 999, alertOnDrop: true, dropThreshold: 30 };
+    const r = evaluateAlertRules({
+      fullName: "a/b", repoStars: 9650, baseStars: 10000, baseDays: 7, prevStars: 10000, cfg,
+    });
+    assert.equal(r.length, 1);
+    assert.equal(r[0].kind, "drop");
+    assert.equal(r[0].growth, -50);          // -350 / 7
+  });
+
+  test("省略 baseDays 时按 1 天处理，原有语义不变", () => {
+    const r = evaluateAlertRules({ fullName: "a/b", repoStars: 1060, baseStars: 1000, prevStars: 1000, cfg: base });
+    assert.equal(r[0].growth, 60);
+  });
+
+  test("里程碑不受归一影响（它基于相邻快照 prevStars）", () => {
+    const cfg = { ...base, threshold: 999, alertOnMilestone: true };
+    const r = evaluateAlertRules({
+      fullName: "a/b", repoStars: 10020, baseStars: 9990, baseDays: 7, prevStars: 9990, cfg,
+    });
+    assert.equal(r.length, 1);
+    assert.equal(r[0].kind, "milestone");
+  });
+});
+
+describe("windowBaseline：窗口基准及其真实跨度", () => {
+  const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString();
+
+  test("有跳天基准时给出真实天数（采集中断场景）", () => {
+    const b = windowBaseline([{ stars: 100, captured_at: iso(7) }, { stars: 200, captured_at: iso(0) }]);
+    assert.equal(b.snap.stars, 100);
+    assert.ok(Math.abs(b.days - 7) < 0.05, `天数应约 7，实际 ${b.days}`);
+  });
+
+  test("约 24h 基准时天数为 1", () => {
+    const b = windowBaseline([{ stars: 100, captured_at: iso(1) }, { stars: 200, captured_at: iso(0) }]);
+    assert.equal(b.snap.stars, 100);
+    assert.ok(b.days >= 1 && b.days < 1.05, `天数应约 1，实际 ${b.days}`);
+  });
+
+  test("没有窗口内基准时退回相邻快照，天数下限为 1（不得放大日均）", () => {
+    const b = windowBaseline([{ stars: 100, captured_at: iso(0.2) }, { stars: 200, captured_at: iso(0) }]);
+    assert.equal(b.snap.stars, 100);
+    assert.equal(b.days, 1);
+  });
+
+  test("快照不足时返回 null", () => {
+    assert.equal(windowBaseline([]), null);
+    assert.equal(windowBaseline([{ stars: 1, captured_at: iso(0) }]), null);
   });
 });
 

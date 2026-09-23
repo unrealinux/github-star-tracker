@@ -84,23 +84,55 @@ function fireAlert(repoId, fullName, alert, userId = 0) {
 }
 
 /**
+ * 找窗口基准快照，并给出它「真的有多旧」（天，下限 1）。
+ *
+ * 基准只保证「不晚于窗口起点」，不保证「接近窗口长度」：采集中断过
+ * （服务没开 / cron 失败 / 机器关机）时它可能已是多天前。调用方必须
+ * 用 days 把增量折算成日均，否则会把 N 天的变化当成一天。
+ *
+ * @returns {{ snap:any, days:number } | null}
+ */
+export function windowBaseline(snaps, now = Date.now(), windowMs = WINDOWS.day.ms) {
+  if (!snaps || snaps.length < 2) return null;
+  const windowStart = now - windowMs;
+
+  let snap = null;
+  for (let i = snaps.length - 1; i >= 0; i--) {
+    if (Date.parse(snaps[i].captured_at) <= windowStart) { snap = snaps[i]; break; }
+  }
+  // 窗口内没有基准（快照都太新）：退回相邻快照，此时跨度不足一天
+  if (snap === null) snap = snaps[snaps.length - 2];
+
+  return { snap, days: Math.max(1, (now - Date.parse(snap.captured_at)) / 86400000) };
+}
+
+/**
  * 纯函数：根据星数与基线判断应触发哪些告警。
  * 与副作用（写库/推送）分离，便于测试。
- * @returns {Array<{kind:string, threshold:number, growth:number, currentStars:number, message?:string}>}
+ *
+ * 阈值是「日增星数」，所以先按 baseDays 归一到日均再比 —— 采集中断时
+ * 基准可能是多天前的快照，拿整段跨度直接比阈值会放大若干倍（实测 7 天
+ * 的增量触发了 241 条假告警）。告警里存的 growth 也因此是日均值。
+ *
+ * @param {number} baseDays 基准快照距现在的天数（≥1）；省略按 1 天
+ * @returns {Array<{kind:string, threshold:number, growth:number, days:number, currentStars:number, message?:string}>}
  */
-export function evaluateAlertRules({ fullName, repoStars, baseStars, prevStars, cfg }) {
+export function evaluateAlertRules({ fullName, repoStars, baseStars, baseDays = 1, prevStars, cfg }) {
   const out = [];
   if (baseStars == null) return out;
-  const growth = repoStars - baseStars;
+
+  const days = Number.isFinite(baseDays) && baseDays > 0 ? baseDays : 1;
+  // 先取整再比较，保证「触发了」与「界面显示的数值」一致（≥ 阈值）
+  const growth = Math.round((repoStars - baseStars) / days);
 
   const override = Number(cfg?.repoThresholds?.[fullName]);
   const effective = Number.isFinite(override) ? override : cfg.threshold;
   if (effective > 0 && growth >= effective) {
-    out.push({ kind: "growth", threshold: effective, growth, currentStars: repoStars });
+    out.push({ kind: "growth", threshold: effective, growth, days, currentStars: repoStars });
   }
 
   if (cfg.alertOnDrop && cfg.dropThreshold > 0 && growth <= -cfg.dropThreshold) {
-    out.push({ kind: "drop", threshold: cfg.dropThreshold, growth, currentStars: repoStars });
+    out.push({ kind: "drop", threshold: cfg.dropThreshold, growth, days, currentStars: repoStars });
   }
 
   if (cfg.alertOnMilestone && prevStars != null) {
@@ -123,16 +155,11 @@ export function evaluateAlertRules({ fullName, repoStars, baseStars, prevStars, 
  * @param {number|null} prevStars 上一次刷新时的星数（用于里程碑判定）
  */
 function checkAlerts(repoId, fullName, repoStars, snaps, prevStars, cfg, userId = 0) {
-  if (snaps.length < 2) return;
-  const windowStart = Date.now() - WINDOWS.day.ms;
+  const base = windowBaseline(snaps);
+  if (!base) return;
 
-  let baseStars = null;
-  for (let i = snaps.length - 1; i >= 0; i--) {
-    if (Date.parse(snaps[i].captured_at) <= windowStart) { baseStars = snaps[i].stars; break; }
-  }
-  if (baseStars === null) baseStars = snaps[snaps.length - 2].stars;
-
-  for (const alert of evaluateAlertRules({ fullName, repoStars, baseStars, prevStars, cfg })) {
+  const { snap, days } = base;
+  for (const alert of evaluateAlertRules({ fullName, repoStars, baseStars: snap.stars, baseDays: days, prevStars, cfg })) {
     const hours = alert.kind === "milestone" ? 24 : 2;
     if (hasRecentAlert(repoId, hours, alert.kind, userId)) continue;
     fireAlert(repoId, fullName, alert, userId);
