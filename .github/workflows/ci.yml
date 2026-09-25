@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+# 同一分支的新提交取消旧任务，省额度
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # optionalDependencies（pg / @electric-sql/pglite）默认会安装，
+      # test:postgres 才能走内嵌 PGlite 跑通
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 语法检查
+        run: find server.js src scripts \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 node --check
+
+      - name: 测试（SQLite）
+        run: npm test
+
+      - name: 测试（PostgreSQL / 内嵌 PGlite）
+        run: npm run test:postgres

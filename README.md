@@ -194,6 +194,15 @@ npm run test:postgres # PostgreSQL（内嵌 PGlite）
 
 代价与 SQLite 模式相同：数据库访问会阻塞事件循环；对本项目「单进程、串行访问」的定位不构成额外限制。
 
+### Schema 迁移
+
+两种后端都支持**版本化迁移**，升级代码后旧库会自动补齐缺失的表/列，无需手工改库：
+
+- SQLite：`src/db.js` 的 `MIGRATIONS` + `PRAGMA user_version`
+- PostgreSQL：`src/dbdriver/migrate.postgres.js` 的 `POSTGRES_MIGRATIONS` + `schema_migrations` 表
+
+**新增 schema 变更时，请两边各追加一条**（PG 侧已应用过的库按版本号补齐；全新库直接建最新结构）。PG 迁移要求**幂等**（`ADD COLUMN IF NOT EXISTS` / `DROP ... IF EXISTS`），因为引入该机制之前就已存在的库没有版本记录，会被当作 version 0 从头补齐。回归测试见 `tests/pg_migration.test.js`。
+
 ### 从 SQLite 迁移已有数据
 
 ```bash
@@ -362,7 +371,7 @@ npm run test:watch
 │   └── sw.js              # Service Worker（离线 shell）
 ├── src/
 │   ├── db.js              # 数据库 schema、迁移、索引、CRUD
-│   ├── dbdriver/          # 驱动层：sqlite / postgres（同步桥）+ SQL 方言转换
+│   ├── dbdriver/          # 驱动层：sqlite / postgres（同步桥）+ SQL 方言转换 + PG 迁移
 │   ├── github.js          # GitHub API 封装（重试、配额解析）
 │   ├── tracker.js         # 采集与计算核心
 │   ├── windows.js         # 时间窗口 / 增长计算共享定义（tracker+external 复用）
@@ -382,7 +391,10 @@ npm run test:watch
 │   └── verification-checklist.md # 真实 PostgreSQL 验证清单（起库/对拍/已知坑）
 ├── tests/
 │   ├── core.test.js       # 核心逻辑单元测试
-│   └── api.test.js        # HTTP 路由集成测试
+│   ├── api.test.js        # HTTP 路由集成测试
+│   ├── migration.test.js  # SQLite 旧库升级回归
+│   ├── pg_migration.test.js # PostgreSQL 迁移回归
+│   └── driver.test.js     # PostgreSQL 驱动错误上报回归
 ├── server.js              # 入口与路由
 ├── Dockerfile
 ├── docker-compose.yml

@@ -611,6 +611,16 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
     assert.equal(bAlerts.unread, 0);
   });
 
+  test("Atom 告警订阅按用户隔离（取自己的告警，而非全局 user 0）", async () => {
+    const repoId = db.prepare("SELECT id FROM repos LIMIT 1").get().id;
+    db.prepare("INSERT INTO alerts (repo_id, threshold, growth, current_stars, kind, user_id) VALUES (?,?,?,?,?,?)")
+      .run(repoId, 10, 77, 6000, "growth", 1);
+    const aFeed = await (await asUser(adminSession, "/api/feed/alerts.xml")).text();
+    const bFeed = await (await asUser(memberSession, "/api/feed/alerts.xml")).text();
+    assert.match(aFeed, /\+77 星/, "alice 的订阅应包含自己的告警");
+    assert.doesNotMatch(bFeed, /\+77 星/, "bob 的订阅不应包含 alice 的告警");
+  });
+
   test("推送订阅按用户隔离", async () => {
     const ecdh = crypto.createECDH("prime256v1");
     ecdh.generateKeys();

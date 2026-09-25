@@ -984,7 +984,7 @@ app.get("/api/feed/:kind", (req, res) => {
       }));
   } else if (kind === "alerts") {
     title = "GitHub Star Tracker · 告警";
-    entries = getRecentAlerts(30).map((a) => ({
+    entries = getRecentAlerts(30, 0, req.userId || 0).map((a) => ({
       title: `🔔 ${a.full_name} ${a.message || `+${a.growth} 星`}`,
       link: gh(a.full_name),
       id: `urn:gst:alert:${a.id}`,

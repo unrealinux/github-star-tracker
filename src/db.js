@@ -302,7 +302,7 @@ function migrate() {
     }
   }
 }
-if (!isPostgres) migrate();   // PostgreSQL 从 schema 直接建到最新结构，无需历史迁移
+if (!isPostgres) migrate();   // PostgreSQL 走 dbdriver/migrate.postgres.js 的版本化迁移
 
 // ── P0-3: 索引（加速过滤、排序、快照查询）──────────────────────────
 // 必须放在 migrate() 之后：索引列（如 repos.is_custom）可能由迁移补充，

@@ -11,7 +11,6 @@
 import { Worker, MessageChannel, receiveMessageOnPort } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import { translate } from "./translate.js";
-import { POSTGRES_SCHEMA } from "./schema.postgres.js";
 
 const WORKER_URL = new URL("./postgres.worker.js", import.meta.url);
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -94,9 +93,4 @@ export function createPostgresDriver({ databaseUrl = "", dataDir = "", ssl = nul
       try { worker.terminate(); } catch { /* ignore */ }
     },
   };
-}
-
-/** 首次建库时执行 schema */
-export function initPostgresSchema(db) {
-  db.exec(POSTGRES_SCHEMA);
 }

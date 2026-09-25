@@ -9,7 +9,7 @@
  */
 import { createRequire } from "node:module";
 import { createPostgresDriver } from "./postgres.js";
-import { POSTGRES_SCHEMA } from "./schema.postgres.js";
+import { migratePostgres } from "./migrate.postgres.js";
 
 const raw = (process.env.DB_DRIVER || "sqlite").toLowerCase();
 export const driverName = ["postgres", "postgresql", "pg"].includes(raw) ? "postgres" : "sqlite";
@@ -18,7 +18,7 @@ export const isPostgres = driverName === "postgres";
 export function createDriver({ sqlitePath, pgDataDir, databaseUrl = "" } = {}) {
   if (isPostgres) {
     const db = createPostgresDriver({ databaseUrl, dataDir: pgDataDir });
-    db.exec(POSTGRES_SCHEMA);
+    migratePostgres(db);
     return db;
   }
   // 按需加载，避免 PostgreSQL 模式下也出现 node:sqlite 的实验性警告
