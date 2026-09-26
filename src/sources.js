@@ -14,7 +14,7 @@ async function getJson(url, headers = {}) {
       headers: { Accept: "application/json", "User-Agent": "github-star-tracker", ...headers },
       signal: ctrl.signal,
     });
-    if (res.status === 404) return null;              // 确实不存在
+    if (res.status === 404) return null; // 确实不存在
     if (res.status === 429) throw new Error("数据源限流（429），请稍后重试");
     if (!res.ok) throw new Error(`数据源返回 HTTP ${res.status}`);
     return await res.json();
@@ -61,7 +61,12 @@ export const SOURCES = {
       const d = await getJson(`https://hub.docker.com/v2/repositories/${key}/`);
       if (!d) return null;
       if (typeof d.pull_count !== "number") return null;
-      return { value: d.pull_count, label: d.name || key, url: `https://hub.docker.com/r/${key}`, unit: "次" };
+      return {
+        value: d.pull_count,
+        label: d.name || key,
+        url: `https://hub.docker.com/r/${key}`,
+        unit: "次",
+      };
     },
   },
 
@@ -83,7 +88,9 @@ export const SOURCES = {
     unit: "篇",
     placeholder: "关键词，如 rust",
     async fetch(key) {
-      const d = await getJson(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(key)}&tags=story&hitsPerPage=0`);
+      const d = await getJson(
+        `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(key)}&tags=story&hitsPerPage=0`,
+      );
       if (!d || typeof d.nbHits !== "number") return null;
       return {
         value: d.nbHits,
@@ -101,10 +108,14 @@ export const SOURCES = {
     async fetch(key) {
       const d = await getJson(`https://formulae.brew.sh/api/formula/${encodeURIComponent(key)}.json`);
       if (!d) return null;
-      const v = d?.analytics?.install_on_request?.["30d"]?.[key]
-        ?? d?.analytics?.install?.["30d"]?.[key];
+      const v = d?.analytics?.install_on_request?.["30d"]?.[key] ?? d?.analytics?.install?.["30d"]?.[key];
       if (typeof v !== "number") return null;
-      return { value: v, label: d.name || key, url: `https://formulae.brew.sh/formula/${key}`, unit: "次/30天" };
+      return {
+        value: v,
+        label: d.name || key,
+        url: `https://formulae.brew.sh/formula/${key}`,
+        unit: "次/30天",
+      };
     },
   },
 
@@ -115,7 +126,12 @@ export const SOURCES = {
     async fetch(key) {
       const d = await getJson(`https://rubygems.org/api/v1/gems/${encodeURIComponent(key)}.json`);
       if (!d || typeof d.downloads !== "number") return null;
-      return { value: d.downloads, label: d.name || key, url: `https://rubygems.org/gems/${key}`, unit: "次" };
+      return {
+        value: d.downloads,
+        label: d.name || key,
+        url: `https://rubygems.org/gems/${key}`,
+        unit: "次",
+      };
     },
   },
 
@@ -124,11 +140,18 @@ export const SOURCES = {
     unit: "次",
     placeholder: "包名，如 Newtonsoft.Json",
     async fetch(key) {
-      const d = await getJson(`https://azuresearch-usnc.nuget.org/query?q=packageid:${encodeURIComponent(key)}&prerelease=false`);
+      const d = await getJson(
+        `https://azuresearch-usnc.nuget.org/query?q=packageid:${encodeURIComponent(key)}&prerelease=false`,
+      );
       const list = Array.isArray(d?.data) ? d.data : [];
       const pkg = list.find((x) => String(x.id).toLowerCase() === String(key).toLowerCase()) || list[0];
       if (!pkg || typeof pkg.totalDownloads !== "number") return null;
-      return { value: pkg.totalDownloads, label: pkg.id, url: `https://www.nuget.org/packages/${pkg.id}`, unit: "次" };
+      return {
+        value: pkg.totalDownloads,
+        label: pkg.id,
+        url: `https://www.nuget.org/packages/${pkg.id}`,
+        unit: "次",
+      };
     },
   },
 
@@ -139,7 +162,9 @@ export const SOURCES = {
     async fetch(key) {
       const [ns, ext] = String(key).split("/");
       if (!ns || !ext) return null;
-      const d = await getJson(`https://open-vsx.org/api/${encodeURIComponent(ns)}/${encodeURIComponent(ext)}`);
+      const d = await getJson(
+        `https://open-vsx.org/api/${encodeURIComponent(ns)}/${encodeURIComponent(ext)}`,
+      );
       if (!d || typeof d.downloadCount !== "number") return null;
       return {
         value: d.downloadCount,
@@ -152,7 +177,10 @@ export const SOURCES = {
 };
 
 export const SOURCE_LIST = Object.entries(SOURCES).map(([key, s]) => ({
-  key, label: s.label, unit: s.unit, placeholder: s.placeholder,
+  key,
+  label: s.label,
+  unit: s.unit,
+  placeholder: s.placeholder,
 }));
 
 /** 抓取某个源的值 */

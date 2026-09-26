@@ -44,7 +44,11 @@ function findChrome() {
   ].filter(Boolean);
   for (const c of candidates) if (existsSync(c)) return c;
   for (const name of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]) {
-    try { return execSync(`command -v ${name}`, { encoding: "utf8" }).trim(); } catch { /* 继续找 */ }
+    try {
+      return execSync(`command -v ${name}`, { encoding: "utf8" }).trim();
+    } catch {
+      /* 继续找 */
+    }
   }
   return null;
 }
@@ -69,7 +73,10 @@ class CDP {
       }
     });
   }
-  on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+  on(fn) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
   send(method, params = {}) {
     const id = ++this.seq;
     return new Promise((resolve, reject) => {
@@ -81,20 +88,24 @@ class CDP {
 
 async function launchChrome() {
   const userDataDir = mkdtempSync(join(tmpdir(), "gst-chrome-"));
-  const proc = spawn(CHROME, [
-    "--headless=new",
-    "--disable-gpu",
-    "--no-sandbox",
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-extensions",
-    "--disable-background-networking",
-    "--disable-component-update",
-    "--mute-audio",
-    "--remote-debugging-port=0",
-    `--user-data-dir=${userDataDir}`,
-    "about:blank",
-  ], { stdio: ["ignore", "ignore", "pipe"], detached: true });
+  const proc = spawn(
+    CHROME,
+    [
+      "--headless=new",
+      "--disable-gpu",
+      "--no-sandbox",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-component-update",
+      "--mute-audio",
+      "--remote-debugging-port=0",
+      `--user-data-dir=${userDataDir}`,
+      "about:blank",
+    ],
+    { stdio: ["ignore", "ignore", "pipe"], detached: true },
+  );
 
   const wsUrl = await new Promise((resolve, reject) => {
     let buf = "";
@@ -102,13 +113,21 @@ async function launchChrome() {
     proc.stderr.on("data", (d) => {
       buf += d.toString();
       const m = buf.match(/DevTools listening on (ws:\/\/\S+)/);
-      if (m) { clearTimeout(timer); resolve(m[1]); }
+      if (m) {
+        clearTimeout(timer);
+        resolve(m[1]);
+      }
     });
-    proc.on("exit", (code) => { clearTimeout(timer); reject(new Error(`Chrome 提前退出，code=${code}`)); });
+    proc.on("exit", (code) => {
+      clearTimeout(timer);
+      reject(new Error(`Chrome 提前退出，code=${code}`));
+    });
   });
 
   const port = new URL(wsUrl).port;
-  const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })).json();
+  const target = await (
+    await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })
+  ).json();
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((res, rej) => {
     ws.addEventListener("open", res, { once: true });
@@ -118,10 +137,25 @@ async function launchChrome() {
 }
 
 async function closeChrome(browser) {
-  try { browser.ws.close(); } catch { /* 已关闭 */ }
-  try { process.kill(-browser.proc.pid, "SIGKILL"); }
-  catch { try { browser.proc.kill("SIGKILL"); } catch { /* 已退出 */ } }
-  try { rmSync(browser.userDataDir, { recursive: true, force: true }); } catch { /* 忽略 */ }
+  try {
+    browser.ws.close();
+  } catch {
+    /* 已关闭 */
+  }
+  try {
+    process.kill(-browser.proc.pid, "SIGKILL");
+  } catch {
+    try {
+      browser.proc.kill("SIGKILL");
+    } catch {
+      /* 已退出 */
+    }
+  }
+  try {
+    rmSync(browser.userDataDir, { recursive: true, force: true });
+  } catch {
+    /* 忽略 */
+  }
 }
 
 // ── 服务器 + 浏览器生命周期 ─────────────────────────────────────
@@ -142,57 +176,74 @@ after(async () => {
     server.closeAllConnections?.();
     await new Promise((r) => server.close(r));
   }
-  try { rmSync(dataDir, { recursive: true, force: true }); } catch { /* 忽略 */ }
+  try {
+    rmSync(dataDir, { recursive: true, force: true });
+  } catch {
+    /* 忽略 */
+  }
 });
 
-test("页面加载：app.js 执行成功且无 JS 异常 / CSP 违规 / 资源错误", { skip: CHROME ? false : "未找到 Chrome", timeout: 60000 }, async () => {
-  const { cdp } = browser;
-  const problems = [];
+test(
+  "页面加载：app.js 执行成功且无 JS 异常 / CSP 违规 / 资源错误",
+  { skip: CHROME ? false : "未找到 Chrome", timeout: 60000 },
+  async () => {
+    const { cdp } = browser;
+    const problems = [];
 
-  cdp.on((msg) => {
-    if (msg.method === "Runtime.exceptionThrown") {
-      const d = msg.params.exceptionDetails;
-      problems.push(`JS 异常: ${d.exception?.description || d.text}`);
-    } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
-      problems.push("console.error: " + msg.params.args.map((a) => a.value ?? a.description ?? "").join(" "));
-    } else if (msg.method === "Log.entryAdded") {
-      const e = msg.params.entry;
-      if (e.source === "security" || e.level === "error") problems.push(`${e.source}/${e.level}: ${e.text}`);
-    } else if (msg.method === "Network.loadingFailed" && !msg.params.canceled) {
-      const b = msg.params.blockedReason ? ` (${msg.params.blockedReason})` : "";
-      problems.push(`资源加载失败: ${msg.params.errorText}${b}`);
-    }
-  });
+    cdp.on((msg) => {
+      if (msg.method === "Runtime.exceptionThrown") {
+        const d = msg.params.exceptionDetails;
+        problems.push(`JS 异常: ${d.exception?.description || d.text}`);
+      } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
+        problems.push(
+          "console.error: " + msg.params.args.map((a) => a.value ?? a.description ?? "").join(" "),
+        );
+      } else if (msg.method === "Log.entryAdded") {
+        const e = msg.params.entry;
+        if (e.source === "security" || e.level === "error")
+          problems.push(`${e.source}/${e.level}: ${e.text}`);
+      } else if (msg.method === "Network.loadingFailed" && !msg.params.canceled) {
+        const b = msg.params.blockedReason ? ` (${msg.params.blockedReason})` : "";
+        problems.push(`资源加载失败: ${msg.params.errorText}${b}`);
+      }
+    });
 
-  await cdp.send("Runtime.enable");
-  await cdp.send("Log.enable");
-  await cdp.send("Page.enable");
-  await cdp.send("Network.enable");
+    await cdp.send("Runtime.enable");
+    await cdp.send("Log.enable");
+    await cdp.send("Page.enable");
+    await cdp.send("Network.enable");
 
-  const loaded = new Promise((resolve) => {
-    const off = cdp.on((m) => { if (m.method === "Page.loadEventFired") { off(); resolve(); } });
-  });
-  await cdp.send("Page.navigate", { url: base + "/" });
-  await loaded;
+    const loaded = new Promise((resolve) => {
+      const off = cdp.on((m) => {
+        if (m.method === "Page.loadEventFired") {
+          off();
+          resolve();
+        }
+      });
+    });
+    await cdp.send("Page.navigate", { url: base + "/" });
+    await loaded;
 
-  // 轮询到 app.js 完成首屏数据加载（#token-status 由「检测中…」被刷新）
-  const evaluate = async (expression) => {
-    const { result } = await cdp.send("Runtime.evaluate", { expression, returnByValue: true });
-    return result.value;
-  };
-  const readState = () => evaluate(`JSON.stringify({
+    // 轮询到 app.js 完成首屏数据加载（#token-status 由「检测中…」被刷新）
+    const evaluate = async (expression) => {
+      const { result } = await cdp.send("Runtime.evaluate", { expression, returnByValue: true });
+      return result.value;
+    };
+    const readState = () =>
+      evaluate(`JSON.stringify({
     title: document.title,
     status: document.getElementById('token-status')?.textContent?.trim() || '',
   })`);
 
-  let state = JSON.parse(await readState());
-  const deadline = Date.now() + 10000;
-  while (state.status === "检测中…" && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 200));
-    state = JSON.parse(await readState());
-  }
+    let state = JSON.parse(await readState());
+    const deadline = Date.now() + 10000;
+    while (state.status === "检测中…" && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 200));
+      state = JSON.parse(await readState());
+    }
 
-  assert.equal(state.title, "GitHub 星标追踪", "页面标题不对，前端可能没加载");
-  assert.notEqual(state.status, "检测中…", "app.js 未完成启动（#token-status 未被刷新）");
-  assert.deepEqual(problems, [], "加载过程中出现错误 / CSP 违规 / 资源失败");
-});
+    assert.equal(state.title, "GitHub 星标追踪", "页面标题不对，前端可能没加载");
+    assert.notEqual(state.status, "检测中…", "app.js 未完成启动（#token-status 未被刷新）");
+    assert.deepEqual(problems, [], "加载过程中出现错误 / CSP 违规 / 资源失败");
+  },
+);

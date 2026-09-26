@@ -26,14 +26,17 @@ export async function backfillRepo({ id, token, days = DEFAULT_DAYS, maxPages = 
   if (!repo) return { error: "仓库不存在", id };
 
   const cutoff = Date.now() - days * 86400000;
-  const byDay = new Map();     // date -> 当天收盘星数（先出现的即当天最大值）
+  const byDay = new Map(); // date -> 当天收盘星数（先出现的即当天最大值）
   const pages = { fetched: 0, points: 0, oldest: null, reachedCutoff: false };
 
   for (let page = 1; page <= maxPages; page++) {
     const { items, hasMore } = await fetchStargazers(repo.full_name, { token, page, perPage: PER_PAGE });
     pages.fetched++;
 
-    if (items.length === 0) { pages.reachedCutoff = true; break; }
+    if (items.length === 0) {
+      pages.reachedCutoff = true;
+      break;
+    }
 
     let hitCutoff = false;
     for (let i = 0; i < items.length; i++) {
@@ -47,18 +50,27 @@ export async function backfillRepo({ id, token, days = DEFAULT_DAYS, maxPages = 
       if (Date.parse(at) < cutoff) hitCutoff = true;
     }
 
-    if (hitCutoff) { pages.reachedCutoff = true; break; }
-    if (!hasMore) { pages.reachedCutoff = true; break; }
+    if (hitCutoff) {
+      pages.reachedCutoff = true;
+      break;
+    }
+    if (!hasMore) {
+      pages.reachedCutoff = true;
+      break;
+    }
     await sleep(120); // 轻微节流，避免触发二级限流
   }
 
   const today = todayUtc();
   const existing = new Set(
-    db.prepare("SELECT substr(captured_at, 1, 10) AS d FROM snapshots WHERE repo_id = ?").all(repo.id).map((r) => r.d)
+    db
+      .prepare("SELECT substr(captured_at, 1, 10) AS d FROM snapshots WHERE repo_id = ?")
+      .all(repo.id)
+      .map((r) => r.d),
   );
 
   const ins = db.prepare(
-    "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?, ?, ?, ?, ?)"
+    "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?, ?, ?, ?, ?)",
   );
   let inserted = 0;
   db.exec("BEGIN");
@@ -91,21 +103,28 @@ export async function backfillRepo({ id, token, days = DEFAULT_DAYS, maxPages = 
 export function resolveBackfillScope(scope = "custom", limit = 10) {
   const lim = Math.min(50, Math.max(1, Number(limit) || 10));
   if (scope === "favorites") {
-    return db.prepare(
-      `SELECT r.id FROM repos r JOIN favorites f ON f.repo_id = r.id ORDER BY r.stars DESC LIMIT ?`
-    ).all(lim).map((r) => r.id);
+    return db
+      .prepare(`SELECT r.id FROM repos r JOIN favorites f ON f.repo_id = r.id ORDER BY r.stars DESC LIMIT ?`)
+      .all(lim)
+      .map((r) => r.id);
   }
   if (scope === "all") {
-    return db.prepare("SELECT id FROM repos ORDER BY stars DESC LIMIT ?").all(lim).map((r) => r.id);
+    return db
+      .prepare("SELECT id FROM repos ORDER BY stars DESC LIMIT ?")
+      .all(lim)
+      .map((r) => r.id);
   }
   // custom（默认）：自定义追踪优先，其次收藏，最后按星数补齐
-  return db.prepare(
-    `SELECT r.id FROM repos r
+  return db
+    .prepare(
+      `SELECT r.id FROM repos r
      LEFT JOIN custom_repos c ON c.full_name = r.full_name
      LEFT JOIN favorites f ON f.repo_id = r.id
      ORDER BY (c.id IS NOT NULL) DESC, (f.repo_id IS NOT NULL) DESC, r.stars DESC
-     LIMIT ?`
-  ).all(lim).map((r) => r.id);
+     LIMIT ?`,
+    )
+    .all(lim)
+    .map((r) => r.id);
 }
 
 /** 顺序回填多个仓库，返回每个仓库的结果（失败不中断整体） */

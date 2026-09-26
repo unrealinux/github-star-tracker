@@ -23,14 +23,19 @@ const LATEST = POSTGRES_MIGRATIONS.length;
 const IS_CUSTOM_VERSION = 6;
 
 const columnNames = (db, table) =>
-  db.prepare("SELECT column_name FROM information_schema.columns WHERE table_name = ?")
+  db
+    .prepare("SELECT column_name FROM information_schema.columns WHERE table_name = ?")
     .all(table)
     .map((r) => r.column_name);
 
 describe("PostgreSQL 迁移", () => {
   let root;
-  before(() => { root = mkdtempSync(join(tmpdir(), "gst-pgmig-")); });
-  after(() => { rmSync(root, { recursive: true, force: true }); });
+  before(() => {
+    root = mkdtempSync(join(tmpdir(), "gst-pgmig-"));
+  });
+  after(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
 
   const open = (name) => createPostgresDriver({ dataDir: join(root, name) });
 
@@ -47,7 +52,10 @@ describe("PostgreSQL 迁移", () => {
       for (const col of ["forks", "open_issues", "stale", "stale_since", "last_error", "is_custom"]) {
         assert.ok(cols.includes(col), `repos 缺少列 ${col}`);
       }
-      const idx = db.prepare("SELECT indexname FROM pg_indexes WHERE tablename = 'repos'").all().map((x) => x.indexname);
+      const idx = db
+        .prepare("SELECT indexname FROM pg_indexes WHERE tablename = 'repos'")
+        .all()
+        .map((x) => x.indexname);
       assert.ok(idx.includes("idx_repos_stars"), "索引应随 schema 一并创建");
     } finally {
       db.close();
@@ -59,8 +67,14 @@ describe("PostgreSQL 迁移", () => {
     try {
       // 先建一个最新库，写入数据
       migratePostgres(db);
-      db.prepare("INSERT INTO repos (full_name, owner, name, url, stars, language) VALUES (?,?,?,?,?,?)")
-        .run("facebook/react", "facebook", "react", "https://github.com/facebook/react", 230000, "JavaScript");
+      db.prepare("INSERT INTO repos (full_name, owner, name, url, stars, language) VALUES (?,?,?,?,?,?)").run(
+        "facebook/react",
+        "facebook",
+        "react",
+        "https://github.com/facebook/react",
+        230000,
+        "JavaScript",
+      );
 
       // 模拟“引入迁移机制之前”的旧库：删掉后加的列，且没有 schema_migrations
       db.exec(`
@@ -92,8 +106,13 @@ describe("PostgreSQL 迁移", () => {
     const db = open("partial");
     try {
       migratePostgres(db);
-      db.prepare("INSERT INTO repos (full_name, owner, name, url, stars) VALUES (?,?,?,?,?)")
-        .run("microsoft/vscode", "microsoft", "vscode", "https://github.com/microsoft/vscode", 160000);
+      db.prepare("INSERT INTO repos (full_name, owner, name, url, stars) VALUES (?,?,?,?,?)").run(
+        "microsoft/vscode",
+        "microsoft",
+        "vscode",
+        "https://github.com/microsoft/vscode",
+        160000,
+      );
 
       // 回退到 v5：删掉 v6 新增的列并移除版本记录
       db.exec(`ALTER TABLE repos DROP COLUMN is_custom;`);

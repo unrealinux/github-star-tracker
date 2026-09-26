@@ -7,21 +7,27 @@ const SHELL = ["/", "/index.html", "/app.js", "/styles.css", "/icon.svg", "/mani
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(SHELL))
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
+    caches
+      .keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
 function isDynamic(pathname) {
-  return pathname.startsWith("/api/")
-    || ["/health", "/metrics", "/badge", "/spark"].some((p) => pathname.startsWith(p));
+  return (
+    pathname.startsWith("/api/") ||
+    ["/health", "/metrics", "/badge", "/spark"].some((p) => pathname.startsWith(p))
+  );
 }
 
 self.addEventListener("fetch", (event) => {
@@ -39,7 +45,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((c) => c.put("/index.html", copy));
           return res;
         })
-        .catch(() => caches.match("/index.html"))
+        .catch(() => caches.match("/index.html")),
     );
     return;
   }
@@ -53,7 +59,7 @@ self.addEventListener("fetch", (event) => {
         }
         return res;
       })
-      .catch(() => caches.match(req))
+      .catch(() => caches.match(req)),
   );
 });
 
@@ -72,7 +78,7 @@ self.addEventListener("push", (event) => {
       badge: "/icon.svg",
       tag: data.tag || "gst-alert",
       data: { url: data.url || "/" },
-    })
+    }),
   );
 });
 
@@ -85,6 +91,6 @@ self.addEventListener("notificationclick", (event) => {
         if (c.url.startsWith(self.location.origin) && "focus" in c) return c.focus();
       }
       return self.clients.openWindow(target);
-    })
+    }),
   );
 });

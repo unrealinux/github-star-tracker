@@ -80,7 +80,10 @@ describe("旧库升级（v0.1.0 → 最新 schema）", () => {
       assert.equal(r.status, 0, `旧库启动失败:\n${r.stderr}`);
 
       const d = new DatabaseSync(legacy.file);
-      const cols = d.prepare("PRAGMA table_info(repos)").all().map((c) => c.name);
+      const cols = d
+        .prepare("PRAGMA table_info(repos)")
+        .all()
+        .map((c) => c.name);
       for (const col of ["forks", "open_issues", "stale", "stale_since", "last_error", "is_custom"]) {
         assert.ok(cols.includes(col), `repos 缺少列 ${col}（迁移未覆盖）`);
       }
@@ -116,7 +119,10 @@ describe("旧库升级（v0.1.0 → 最新 schema）", () => {
       assert.equal(r.status, 0, `旧库启动失败:\n${r.stderr}`);
 
       const d = new DatabaseSync(legacy.file);
-      const idx = d.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map((x) => x.name);
+      const idx = d
+        .prepare("SELECT name FROM sqlite_master WHERE type='index'")
+        .all()
+        .map((x) => x.name);
       assert.ok(idx.includes("idx_repos_is_custom"), "idx_repos_is_custom 未创建");
       assert.ok(idx.includes("idx_snapshots_repo_captured"));
       d.close();

@@ -27,7 +27,8 @@ export const POSTGRES_MIGRATIONS = [
   (db) => db.exec("DROP TABLE IF EXISTS retention_config;"),
 
   // v2: 多指标支持（forks / open_issues）
-  (db) => db.exec(`
+  (db) =>
+    db.exec(`
     ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS forks       INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS open_issues INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE IF EXISTS snapshots ADD COLUMN IF NOT EXISTS forks       INTEGER NOT NULL DEFAULT 0;
@@ -35,20 +36,23 @@ export const POSTGRES_MIGRATIONS = [
   `),
 
   // v3: 规则化告警（kind / message）
-  (db) => db.exec(`
+  (db) =>
+    db.exec(`
     ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS kind    TEXT NOT NULL DEFAULT 'growth';
     ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS message TEXT;
   `),
 
   // v4: 仓库健康状态（重命名 / 删除检测）
-  (db) => db.exec(`
+  (db) =>
+    db.exec(`
     ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS stale       INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS stale_since TEXT;
     ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS last_error  TEXT;
   `),
 
   // v5: 多用户（user_id 作用域化）
-  (db) => db.exec(`
+  (db) =>
+    db.exec(`
     ALTER TABLE IF EXISTS favorites          ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE IF EXISTS custom_repos       ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE IF EXISTS tracked_queries    ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0;
@@ -58,11 +62,14 @@ export const POSTGRES_MIGRATIONS = [
   `),
 
   // v6: 自定义仓库标记（repos.is_custom）
-  (db) => db.exec("ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS is_custom INTEGER NOT NULL DEFAULT 0;"),
+  (db) =>
+    db.exec("ALTER TABLE IF EXISTS repos ADD COLUMN IF NOT EXISTS is_custom INTEGER NOT NULL DEFAULT 0;"),
 ];
 
 function markApplied(db, version) {
-  db.prepare("INSERT INTO schema_migrations (version) VALUES (?) ON CONFLICT (version) DO NOTHING").run(version);
+  db.prepare("INSERT INTO schema_migrations (version) VALUES (?) ON CONFLICT (version) DO NOTHING").run(
+    version,
+  );
 }
 
 function appliedVersion(db) {

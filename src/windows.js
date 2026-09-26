@@ -3,8 +3,8 @@
  * tracker.js / external.js 复用，避免两份逻辑各自漂移。
  */
 export const WINDOWS = {
-  day:   { ms: 24 * 3600 * 1000, label: "近24h" },
-  week:  { ms: 7 * 24 * 3600 * 1000, label: "近7天" },
+  day: { ms: 24 * 3600 * 1000, label: "近24h" },
+  week: { ms: 7 * 24 * 3600 * 1000, label: "近7天" },
   month: { ms: 30 * 24 * 3600 * 1000, label: "近30天" },
 };
 
@@ -29,7 +29,10 @@ export function avgDailyGrowth(snaps, getValue = (s) => s.stars) {
   const latest = snaps[snaps.length - 1];
   let earliest = snaps[0];
   for (const s of snaps) {
-    if (Date.parse(s.captured_at) >= cutoff) { earliest = s; break; }
+    if (Date.parse(s.captured_at) >= cutoff) {
+      earliest = s;
+      break;
+    }
   }
   const days = (Date.parse(latest.captured_at) - Date.parse(earliest.captured_at)) / 86400000;
   if (!(days > 0)) return null;

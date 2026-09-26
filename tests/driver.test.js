@@ -27,8 +27,12 @@ describe("PostgreSQL 驱动错误上报", () => {
   });
 
   after(() => {
-    try { db?.close(); } catch {}
-    try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+    try {
+      db?.close();
+    } catch {}
+    try {
+      rmSync(tmp, { recursive: true, force: true });
+    } catch {}
   });
 
   test("查询不存在的表：报出真实原因，而不是 undefined", () => {

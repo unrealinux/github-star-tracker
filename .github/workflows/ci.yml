@@ -34,6 +34,12 @@ jobs:
       - name: 语法检查
         run: find server.js src scripts \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 node --check
 
+      - name: Lint（ESLint）
+        run: npm run lint
+
+      - name: 格式检查（Prettier）
+        run: npm run format:check
+
       - name: 测试（SQLite）
         run: npm test
 

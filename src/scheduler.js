@@ -1,4 +1,13 @@
-import { db, getSetting, setSetting, saveScheduledState, loadScheduledState, getRetentionDays, cleanupOldSnapshots, rollupOldSnapshots } from "./db.js";
+import {
+  db,
+  getSetting,
+  setSetting,
+  saveScheduledState,
+  loadScheduledState,
+  getRetentionDays,
+  cleanupOldSnapshots,
+  rollupOldSnapshots,
+} from "./db.js";
 import { refresh, refreshCustomRepos, refreshTrackedQueries, setNotify } from "./tracker.js";
 import { refreshExternalMetrics } from "./external.js";
 import { sendAlertWebhook } from "./notify.js";
@@ -20,16 +29,22 @@ function acquireRefreshLock() {
     db.prepare("INSERT INTO scheduled_state (key, value) VALUES ('refresh_locked', '1')").run();
     _running = true;
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 function releaseRefreshLock() {
   _running = false;
-  try { db.prepare("DELETE FROM scheduled_state WHERE key = 'refresh_locked'").run(); } catch {}
+  try {
+    db.prepare("DELETE FROM scheduled_state WHERE key = 'refresh_locked'").run();
+  } catch {}
 }
 
 (async function init() {
   // 上次进程退出若未释放锁（崩溃/被杀），重启后清理陈旧锁
-  try { db.prepare("DELETE FROM scheduled_state WHERE key = 'refresh_locked'").run(); } catch {}
+  try {
+    db.prepare("DELETE FROM scheduled_state WHERE key = 'refresh_locked'").run();
+  } catch {}
   const saved = loadScheduledState();
   if (saved.last_auto_at) state.lastAutoAt = saved.last_auto_at;
   if (saved.last_auto_ok !== undefined) state.lastAutoOk = saved.last_auto_ok === "1";
@@ -79,7 +94,12 @@ export async function runScheduledRefresh({ token }) {
     state.lastAutoOk = true;
     state.lastAutoMessage = `抓取完成：热门 ${result.upserted}，自定义 ${result.customUpserted}，追踪 ${result.queriesRefreshed}，外部 ${result.externalFetched}，共 ${result.total} 项目`;
     saveScheduledState(state);
-    logger.info("自动刷新完成", { hot: result.upserted, custom: result.customUpserted, external: result.externalFetched, total: result.total });
+    logger.info("自动刷新完成", {
+      hot: result.upserted,
+      custom: result.customUpserted,
+      external: result.externalFetched,
+      total: result.total,
+    });
     return result;
   } catch (e) {
     state.lastAutoAt = new Date().toISOString();
@@ -97,7 +117,11 @@ export async function runManualRefresh({ token }) {
   if (!acquireRefreshLock()) return { skipped: true, reason: "已有刷新任务在执行中" };
   try {
     const result = await performRefresh({ token, force: true });
-    logger.info("手动刷新完成", { hot: result.upserted, custom: result.customUpserted, external: result.externalFetched });
+    logger.info("手动刷新完成", {
+      hot: result.upserted,
+      custom: result.customUpserted,
+      external: result.externalFetched,
+    });
     return result;
   } finally {
     releaseRefreshLock();

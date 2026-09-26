@@ -15,7 +15,15 @@ import { sendPushToAll } from "./webpush.js";
 const TIMEOUT_MS = 8000;
 
 export const WEBHOOK_TYPES = [
-  "generic", "slack", "discord", "telegram", "feishu", "dingtalk", "ntfy", "bark", "serverchan",
+  "generic",
+  "slack",
+  "discord",
+  "telegram",
+  "feishu",
+  "dingtalk",
+  "ntfy",
+  "bark",
+  "serverchan",
 ];
 
 const json = (obj) => ({ body: JSON.stringify(obj), contentType: "application/json" });
@@ -62,16 +70,23 @@ function alertMessage(alert) {
   const repoUrl = `https://github.com/${fullName}`;
   let text;
   if (kind === "milestone") text = message || `${fullName} 突破 ${Number(currentStars).toLocaleString()} 星`;
-  else if (kind === "drop") text = `${fullName} 24h 内减少 ${Math.abs(growth)} 星（当前 ${Number(currentStars).toLocaleString()} 星）`;
-  else text = `${fullName} 24h 内新增 ${growth} 星（阈值 ${threshold}），当前 ${Number(currentStars).toLocaleString()} 星`;
+  else if (kind === "drop")
+    text = `${fullName} 24h 内减少 ${Math.abs(growth)} 星（当前 ${Number(currentStars).toLocaleString()} 星）`;
+  else
+    text = `${fullName} 24h 内新增 ${growth} 星（阈值 ${threshold}），当前 ${Number(currentStars).toLocaleString()} 星`;
 
   return {
     event: `star_${kind}_alert`,
     title: "⭐ GitHub Star Tracker 告警",
     text: `${text}\n${repoUrl}`,
     data: {
-      repo: fullName, url: repoUrl, growth, threshold,
-      current_stars: currentStars, kind, triggered_at: new Date().toISOString(),
+      repo: fullName,
+      url: repoUrl,
+      growth,
+      threshold,
+      current_stars: currentStars,
+      kind,
+      triggered_at: new Date().toISOString(),
     },
   };
 }
@@ -103,7 +118,10 @@ export async function sendAlertWebhook(alert) {
   const msg = alertMessage(alert);
 
   // 系统级推送（无 webhook 配置时也会发；按告警所属用户定向）
-  sendPushToAll({ title: msg.title, body: msg.text.split("\n")[0], url: msg.data?.url }, alert.userId ?? null).catch(() => {});
+  sendPushToAll(
+    { title: msg.title, body: msg.text.split("\n")[0], url: msg.data?.url },
+    alert.userId ?? null,
+  ).catch(() => {});
 
   const { url, type } = currentWebhook();
   if (!url) return;
@@ -120,7 +138,12 @@ export async function sendDigest({ title, text }) {
   const { url, type } = currentWebhook();
   if (!url) return { ok: false, skipped: true, reason: "未配置 Webhook 地址" };
   try {
-    const res = await deliver(type, url, { event: "digest", title, text, data: { at: new Date().toISOString() } });
+    const res = await deliver(type, url, {
+      event: "digest",
+      title,
+      text,
+      data: { at: new Date().toISOString() },
+    });
     return { ok: res.ok, status: res.status };
   } catch (e) {
     return { ok: false, error: e.message };
@@ -129,7 +152,13 @@ export async function sendDigest({ title, text }) {
 
 /** 发送测试通知，返回结果供接口回显 */
 export async function testWebhook(url, type) {
-  const msg = alertMessage({ fullName: "octocat/Hello-World", growth: 42, currentStars: 12345, threshold: 10, kind: "growth" });
+  const msg = alertMessage({
+    fullName: "octocat/Hello-World",
+    growth: 42,
+    currentStars: 12345,
+    threshold: 10,
+    kind: "growth",
+  });
   try {
     const res = await deliver((type || "generic").toLowerCase(), url, msg);
     return { ok: res.ok, status: res.status };

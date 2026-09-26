@@ -8,9 +8,18 @@ const NOW_ISO = `to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 
 // 含自增 id 的表：INSERT 时追加 RETURNING id 以模拟 lastInsertRowid
 const TABLES_WITH_ID = new Set([
-  "repos", "snapshots", "custom_repos", "favorites", "alerts", "api_stats",
-  "tracked_metrics", "metric_snapshots", "indices", "tracked_queries",
-  "push_subscriptions", "users",
+  "repos",
+  "snapshots",
+  "custom_repos",
+  "favorites",
+  "alerts",
+  "api_stats",
+  "tracked_metrics",
+  "metric_snapshots",
+  "indices",
+  "tracked_queries",
+  "push_subscriptions",
+  "users",
 ]);
 
 /** `?` → `$1..$n`（本项目 SQL 中不存在字符串字面量里的 `?`） */
@@ -23,8 +32,14 @@ function translateStrftime(sql) {
   return sql
     .replace(/strftime\('%Y-%m-%dT%H:%M:%SZ'\s*,\s*'now'\)/gi, NOW_ISO)
     .replace(/strftime\('%Y-%m-%d'\s*,\s*'now'\)/gi, `to_char(now() at time zone 'utc','YYYY-MM-DD')`)
-    .replace(/strftime\('%Y-%m-%W'\s*,\s*([^)]+)\)/gi, (_m, col) => `to_char((${col.trim()})::timestamptz, 'IYYY-IW')`)
-    .replace(/strftime\('%Y-%W'\s*,\s*([^)]+)\)/gi, (_m, col) => `to_char((${col.trim()})::timestamptz, 'IYYY-IW')`);
+    .replace(
+      /strftime\('%Y-%m-%W'\s*,\s*([^)]+)\)/gi,
+      (_m, col) => `to_char((${col.trim()})::timestamptz, 'IYYY-IW')`,
+    )
+    .replace(
+      /strftime\('%Y-%W'\s*,\s*([^)]+)\)/gi,
+      (_m, col) => `to_char((${col.trim()})::timestamptz, 'IYYY-IW')`,
+    );
 }
 
 /** 标量 MAX(a, b) → GREATEST(a, b)（聚合 MAX(x) 不受影响） */
@@ -42,10 +57,16 @@ function translateInsertOrIgnore(sql) {
 function translateInsertOrReplace(sql) {
   const m = sql.match(/INSERT\s+OR\s+REPLACE\s+INTO\s+([\w.]+)\s*\(([^)]*)\)/i);
   if (!m) return sql;
-  const cols = m[2].split(",").map((c) => c.trim()).filter(Boolean);
+  const cols = m[2]
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
   if (cols.length < 1) return sql;
   const pk = cols[0];
-  const sets = cols.slice(1).map((c) => `${c} = EXCLUDED.${c}`).join(", ");
+  const sets = cols
+    .slice(1)
+    .map((c) => `${c} = EXCLUDED.${c}`)
+    .join(", ");
   let out = sql.replace(/INSERT\s+OR\s+REPLACE\s+INTO/gi, "INSERT INTO");
   const conflict = sets ? `ON CONFLICT (${pk}) DO UPDATE SET ${sets}` : `ON CONFLICT (${pk}) DO NOTHING`;
   if (!/ON\s+CONFLICT/i.test(out)) out = out.replace(/;\s*$/, "") + " " + conflict;

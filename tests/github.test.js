@@ -13,8 +13,12 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  fetchCustomRepo, fetchRepoDetails, searchTopRepos, checkToken,
-  getTokenState, resetTokenState,
+  fetchCustomRepo,
+  fetchRepoDetails,
+  searchTopRepos,
+  checkToken,
+  getTokenState,
+  resetTokenState,
 } from "../src/github.js";
 
 const realFetch = globalThis.fetch;
@@ -40,12 +44,14 @@ const json = (body, status = 200, headers = {}) =>
 const repoBody = { full_name: "a/b", stargazers_count: 1, owner: { login: "a" }, name: "b" };
 
 beforeEach(() => resetTokenState());
-afterEach(() => { globalThis.fetch = realFetch; });
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 describe("GitHub token 失效降级", () => {
   test("拿到 401 时自动改用匿名重试并成功返回", async () => {
     const calls = stubFetch((_url, auth) =>
-      auth ? json({ message: "Bad credentials" }, 401) : json(repoBody)
+      auth ? json({ message: "Bad credentials" }, 401) : json(repoBody),
     );
 
     const repo = await fetchCustomRepo("a/b", "ghp_bad");
@@ -59,26 +65,29 @@ describe("GitHub token 失效降级", () => {
 
   test("判定失效后，后续请求直接匿名——不重复浪费一次请求", async () => {
     const calls = stubFetch((_url, auth) =>
-      auth ? json({ message: "Bad credentials" }, 401) : json(repoBody)
+      auth ? json({ message: "Bad credentials" }, 401) : json(repoBody),
     );
 
-    await fetchCustomRepo("a/b", "ghp_bad");     // 带 token 失败 + 匿名成功 = 2 次
+    await fetchCustomRepo("a/b", "ghp_bad"); // 带 token 失败 + 匿名成功 = 2 次
     const afterFirst = calls.length;
 
-    await fetchCustomRepo("c/d", "ghp_bad");     // 应只需 1 次
+    await fetchCustomRepo("c/d", "ghp_bad"); // 应只需 1 次
     assert.equal(calls.length, afterFirst + 1, "第二次调用不应再试 token");
     assert.equal(calls.at(-1).auth, null, "第二次调用应直接匿名");
   });
 
   test("searchTopRepos 同样能降级（不只 repos 接口）", async () => {
     const calls = stubFetch((_url, auth) =>
-      auth ? json({ message: "Bad credentials" }, 401) : json({ items: [], total_count: 0 })
+      auth ? json({ message: "Bad credentials" }, 401) : json({ items: [], total_count: 0 }),
     );
 
     const out = await searchTopRepos({ minStars: 100, token: "ghp_bad", maxPages: 1, perPage: 1 });
 
     assert.ok(out, "应正常返回而不是抛错");
-    assert.ok(calls.some((c) => c.auth === null), "应发生匿名请求");
+    assert.ok(
+      calls.some((c) => c.auth === null),
+      "应发生匿名请求",
+    );
     assert.equal(getTokenState(), "invalid");
   });
 
@@ -111,7 +120,7 @@ describe("GitHub token 失效降级", () => {
 describe("checkToken 主动探测", () => {
   test("坏 token → invalid；好 token → ok；空 token → none", async () => {
     stubFetch((_url, auth) =>
-      auth === "Bearer ghp_bad" ? json({ message: "Bad credentials" }, 401) : json({ resources: {} })
+      auth === "Bearer ghp_bad" ? json({ message: "Bad credentials" }, 401) : json({ resources: {} }),
     );
 
     assert.equal(await checkToken("ghp_bad"), "invalid");
@@ -122,20 +131,22 @@ describe("checkToken 主动探测", () => {
   });
 
   test("探测失败（网络异常）时不误判为失效", async () => {
-    globalThis.fetch = async () => { throw new Error("network down"); };
+    globalThis.fetch = async () => {
+      throw new Error("network down");
+    };
     assert.equal(await checkToken("ghp_good"), "unknown");
   });
 
   test("探测始终带 token，即使此前已判定失效", async () => {
     const calls = stubFetch((_url, auth) =>
-      auth ? json({ message: "Bad credentials" }, 401) : json(repoBody)
+      auth ? json({ message: "Bad credentials" }, 401) : json(repoBody),
     );
 
-    await fetchCustomRepo("a/b", "ghp_bad");     // 先判定失效
+    await fetchCustomRepo("a/b", "ghp_bad"); // 先判定失效
     assert.equal(getTokenState(), "invalid");
     const before = calls.length;
 
-    await checkToken("ghp_bad");                 // 探测必须仍带 token，否则永远测不出问题
+    await checkToken("ghp_bad"); // 探测必须仍带 token，否则永远测不出问题
     assert.ok(calls.length > before, "应真的发出探测请求");
     assert.equal(calls.at(-1).auth, "Bearer ghp_bad", "探测必须强制带上 token");
   });

@@ -17,11 +17,15 @@ export function buildDigest({ topN = 5 } = {}) {
     `🚀 日均增长 Top ${topN}`,
   ];
   if (!lb.byGrowth.length) lines.push("  （暂无足够数据）");
-  lb.byGrowth.forEach((r, i) => lines.push(`  ${i + 1}. ${r.full_name}  +${r.avgDailyGrowth}/天（★${fmt(r.stars)}）`));
+  lb.byGrowth.forEach((r, i) =>
+    lines.push(`  ${i + 1}. ${r.full_name}  +${r.avgDailyGrowth}/天（★${fmt(r.stars)}）`),
+  );
 
   lines.push("", "⚡ 爆发项目");
   if (!surges.length) lines.push("  （暂无）");
-  surges.forEach((r, i) => lines.push(`  ${i + 1}. ${r.full_name}  加速度 +${r.accel} 星/天²（近日均 ${r.recentAvg}）`));
+  surges.forEach((r, i) =>
+    lines.push(`  ${i + 1}. ${r.full_name}  加速度 +${r.accel} 星/天²（近日均 ${r.recentAvg}）`),
+  );
 
   return { title: `📊 GitHub Star Tracker 日报 ${today}`, text: lines.join("\n") };
 }

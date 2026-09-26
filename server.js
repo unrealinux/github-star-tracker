@@ -5,32 +5,85 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import {
   db,
-  getSetting, getSettings, setSetting, closeDb,
-  listCustomRepos, countCustomRepos, addCustomRepo, removeCustomRepo, searchCustomRepo,
-  toggleFavorite, listFavorites, countFavorites,
-  getAlertsUnreadCount, markAlertsRead, getRecentAlerts,
+  getSetting,
+  getSettings,
+  setSetting,
+  closeDb,
+  listCustomRepos,
+  countCustomRepos,
+  addCustomRepo,
+  removeCustomRepo,
+  searchCustomRepo,
+  toggleFavorite,
+  listFavorites,
+  countFavorites,
+  getAlertsUnreadCount,
+  markAlertsRead,
+  getRecentAlerts,
   getApiQuotaInfo,
-  exportDb, exportData, importData,
-  getSavedViews, saveView, deleteView,
-  listIndices, addIndex, removeIndex,
-  listTrackedQueries, addTrackedQuery, removeTrackedQuery,
-  listPushSubscriptions, countPushSubscriptions,
-  countUsers, listUsers, getUser, getUserByName, createUser, deleteUser,
-  setUserPassword, setUserRole, createSession, getSession, deleteSession, purgeExpiredSessions,
-  addTrackedMetric, removeTrackedMetric, getTrackedMetric, countTrackedMetrics,
+  exportDb,
+  exportData,
+  importData,
+  getSavedViews,
+  saveView,
+  deleteView,
+  listIndices,
+  addIndex,
+  removeIndex,
+  listTrackedQueries,
+  addTrackedQuery,
+  removeTrackedQuery,
+  listPushSubscriptions,
+  countPushSubscriptions,
+  countUsers,
+  listUsers,
+  getUser,
+  getUserByName,
+  createUser,
+  deleteUser,
+  setUserPassword,
+  createSession,
+  getSession,
+  deleteSession,
+  purgeExpiredSessions,
+  addTrackedMetric,
+  removeTrackedMetric,
+  getTrackedMetric,
+  countTrackedMetrics,
 } from "./src/db.js";
 import { hashPassword, verifyPassword, newSessionToken, SESSION_TTL_MS } from "./src/auth.js";
 import {
-  listRepos, listLanguages, getRepoHistory, getStats,
-  getLanguageTrends, getRankChanges, getLeaderboard,
-  getSurges, listReposAt, getBadgeData, AVAILABLE_METRICS,
-  compareRepos, getOverview, findSimilarRepos,
-  getAnomalies, getRisingStars, getSparkData,
-  getEvents, backtestAlerts,
-  getIndexSeries, getQueryAggregate, refreshTrackedQueries,
+  listRepos,
+  listLanguages,
+  getRepoHistory,
+  getStats,
+  getLanguageTrends,
+  getRankChanges,
+  getLeaderboard,
+  getSurges,
+  listReposAt,
+  getBadgeData,
+  AVAILABLE_METRICS,
+  compareRepos,
+  getOverview,
+  findSimilarRepos,
+  getAnomalies,
+  getRisingStars,
+  getSparkData,
+  getEvents,
+  backtestAlerts,
+  getIndexSeries,
+  getQueryAggregate,
+  refreshTrackedQueries,
 } from "./src/tracker.js";
 import { renderBadge, colorForGrowth, compactNumber, renderSparkline, shieldsPayload } from "./src/badge.js";
-import { runScheduledRefresh, runManualRefresh, getScheduleState, runCleanup, checkDueDigest } from "./src/scheduler.js";
+import {
+  runScheduledRefresh,
+  runManualRefresh,
+  getScheduleState,
+  runCleanup,
+  checkDueDigest,
+} from "./src/scheduler.js";
 import { testWebhook, WEBHOOK_TYPES } from "./src/notify.js";
 import { SOURCE_LIST, fetchSource } from "./src/sources.js";
 import { refreshExternalMetrics, listExternalMetrics, getExternalMetricHistory } from "./src/external.js";
@@ -41,7 +94,9 @@ import { fetchRepoDetails, getLastQuota, getTokenState, checkToken } from "./src
 import { logger } from "./src/logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-try { process.loadEnvFile(join(__dirname, ".env")); } catch {}
+try {
+  process.loadEnvFile(join(__dirname, ".env"));
+} catch {}
 
 const app = express();
 
@@ -98,7 +153,7 @@ app.use("/api", (_req, res, next) => {
 });
 app.use(express.static(join(__dirname, "public")));
 
-const PORT      = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 /**
  * 解析 GitHub token：优先 `GITHUB_TOKEN`，为空时回退到 gh CLI 约定的 `GH_TOKEN`。
@@ -113,12 +168,12 @@ export function resolveToken(env = process.env) {
 }
 
 const { token: TOKEN, source: TOKEN_SOURCE } = resolveToken();
-const API_KEY   = process.env.API_KEY || "";
+const API_KEY = process.env.API_KEY || "";
 // 只读订阅令牌：可安全地写进 RSS URL，权限仅限 /api/feed/*，不暴露主 API Key
 const FEED_TOKEN = process.env.FEED_TOKEN || "";
 const DEFAULT_MIN_STARS = 1000;
 const DEFAULT_MIN_GROWTH = 0;
-const CRON      = process.env.CRON_SCHEDULE || "0 9 * * *";
+const CRON = process.env.CRON_SCHEDULE || "0 9 * * *";
 const POLL_TICK = "* * * * *";
 
 const cronValid = cron.validate(CRON);
@@ -147,7 +202,12 @@ function safeEqual(a, b) {
 
 function issueSession(userId, req) {
   const token = newSessionToken();
-  createSession({ token, userId, expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(), userAgent: req.get("user-agent") });
+  createSession({
+    token,
+    userId,
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(),
+    userAgent: req.get("user-agent"),
+  });
   purgeExpiredSessions();
   return token;
 }
@@ -199,7 +259,7 @@ function resolveAuth(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (req.user?.role === "admin") return next();
-  if (countUsers() === 0) return next();      // 单用户模式视为管理员
+  if (countUsers() === 0) return next(); // 单用户模式视为管理员
   res.status(403).json({ error: "需要管理员权限" });
 }
 
@@ -236,7 +296,10 @@ function renderMetrics() {
   metric("gst_api_quota_limit", "GitHub API daily limit", "gauge", q.limit);
   metric("gst_last_refresh_timestamp_seconds", "Unix time of last snapshot", "gauge", lastRefresh);
   metric("gst_refresh_running", "1 when a refresh is in progress", "gauge", state.running ? 1 : 0);
-  lines.push("# HELP gst_http_requests_total HTTP requests by method and status", "# TYPE gst_http_requests_total counter");
+  lines.push(
+    "# HELP gst_http_requests_total HTTP requests by method and status",
+    "# TYPE gst_http_requests_total counter",
+  );
   for (const [key, count] of requestCounters) {
     const [method, status] = key.split("|");
     lines.push(`gst_http_requests_total{method="${method}",status="${status}"} ${count}`);
@@ -258,7 +321,10 @@ function rateLimit({ windowMs = 60_000, max = 6, name } = {}) {
     const key = `${bucket}:${req.ip || "unknown"}`;
     const now = Date.now();
     const b = rateBuckets.get(key) || { count: 0, reset: now + windowMs };
-    if (now > b.reset) { b.count = 0; b.reset = now + windowMs; }
+    if (now > b.reset) {
+      b.count = 0;
+      b.reset = now + windowMs;
+    }
     b.count++;
     rateBuckets.set(key, b);
     if (b.count > max) {
@@ -312,7 +378,11 @@ app.post("/api/auth/login", rateLimit({ windowMs: 60_000, max: 10, name: "auth-l
   if (!user || !verifyPassword(password, user.password_hash)) {
     return res.status(401).json({ error: "用户名或密码错误" });
   }
-  res.json({ ok: true, user: { id: user.id, username: user.username, role: user.role }, session: issueSession(user.id, req) });
+  res.json({
+    ok: true,
+    user: { id: user.id, username: user.username, role: user.role },
+    session: issueSession(user.id, req),
+  });
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -340,7 +410,8 @@ app.delete("/api/auth/users/:id", requireAdmin, (req, res) => {
   if (!getUser(id)) return res.status(404).json({ error: "用户不存在" });
   const admins = listUsers().filter((u) => u.role === "admin");
   const target = getUser(id);
-  if (target.role === "admin" && admins.length <= 1) return res.status(400).json({ error: "至少保留一名管理员" });
+  if (target.role === "admin" && admins.length <= 1)
+    return res.status(400).json({ error: "至少保留一名管理员" });
   deleteUser(id);
   res.json({ ok: true });
 });
@@ -365,31 +436,31 @@ function publicSettings(userId = 0) {
     return s[key] === undefined || s[key] === "" || !Number.isFinite(n) ? fallback : n;
   };
   return {
-    minStars:        num("minStars", DEFAULT_MIN_STARS),
-    minGrowth:       num("minGrowth", DEFAULT_MIN_GROWTH),
-    retentionDays:   num("retentionDays", 90),
-    alertThreshold:  num("alertThreshold", 50),
+    minStars: num("minStars", DEFAULT_MIN_STARS),
+    minGrowth: num("minGrowth", DEFAULT_MIN_GROWTH),
+    retentionDays: num("retentionDays", 90),
+    alertThreshold: num("alertThreshold", 50),
     autoPollMinutes: num("autoPollMinutes", 0),
-    searchQuery:     s.searchQuery || "",
-    webhookUrl:      s.webhookUrl || "",
-    webhookType:     s.webhookType || "generic",
-    theme:           s.theme || "dark",
-    alertOnDrop:       s.alertOnDrop === "1",
-    dropThreshold:     num("dropThreshold", 50),
-    alertOnMilestone:  s.alertOnMilestone === "1",
-    digestEnabled:     s.digestEnabled === "1",
-    digestTime:        s.digestTime || "09:00",
-    autoBackup:        s.autoBackup !== "0",
-    backfillDays:      num("backfillDays", 90),
-    backfillMaxPages:  num("backfillMaxPages", 20),
-    quotaFloor:        num("quotaFloor", 3),
+    searchQuery: s.searchQuery || "",
+    webhookUrl: s.webhookUrl || "",
+    webhookType: s.webhookType || "generic",
+    theme: s.theme || "dark",
+    alertOnDrop: s.alertOnDrop === "1",
+    dropThreshold: num("dropThreshold", 50),
+    alertOnMilestone: s.alertOnMilestone === "1",
+    digestEnabled: s.digestEnabled === "1",
+    digestTime: s.digestTime || "09:00",
+    autoBackup: s.autoBackup !== "0",
+    backfillDays: num("backfillDays", 90),
+    backfillMaxPages: num("backfillMaxPages", 20),
+    quotaFloor: num("quotaFloor", 3),
     externalIntervalHours: num("externalIntervalHours", 24),
-    rollupAfterDays:   num("rollupAfterDays", 30),
-    sourceIntervals:   s.sourceIntervals || "{}",
-    pushCount:         countPushSubscriptions(userId),
+    rollupAfterDays: num("rollupAfterDays", 30),
+    sourceIntervals: s.sourceIntervals || "{}",
+    pushCount: countPushSubscriptions(userId),
     tokenConfigured: Boolean(TOKEN),
-    tokenState:      getTokenState(),
-    authEnabled:     Boolean(API_KEY),
+    tokenState: getTokenState(),
+    authEnabled: Boolean(API_KEY),
   };
 }
 
@@ -489,26 +560,33 @@ app.post("/api/queries/refresh", rateLimit({ windowMs: 60_000, max: 3 }), async 
 app.put("/api/settings", (req, res) => {
   const b = req.body || {};
   try {
-    if (b.minStars        !== undefined) setSetting("minStars",        toNum(b.minStars, DEFAULT_MIN_STARS));
-    if (b.minGrowth       !== undefined) setSetting("minGrowth",       toNum(b.minGrowth, DEFAULT_MIN_GROWTH));
-    if (b.retentionDays   !== undefined) setSetting("retentionDays",   toNum(b.retentionDays, 90));
-    if (b.alertThreshold  !== undefined) setSetting("alertThreshold",  toNum(b.alertThreshold, 50));
+    if (b.minStars !== undefined) setSetting("minStars", toNum(b.minStars, DEFAULT_MIN_STARS));
+    if (b.minGrowth !== undefined) setSetting("minGrowth", toNum(b.minGrowth, DEFAULT_MIN_GROWTH));
+    if (b.retentionDays !== undefined) setSetting("retentionDays", toNum(b.retentionDays, 90));
+    if (b.alertThreshold !== undefined) setSetting("alertThreshold", toNum(b.alertThreshold, 50));
     if (b.autoPollMinutes !== undefined) setSetting("autoPollMinutes", toNum(b.autoPollMinutes, 0));
-    if (b.searchQuery     !== undefined) setSetting("searchQuery",     String(b.searchQuery).trim());
-    if (b.webhookUrl      !== undefined) setSetting("webhookUrl",      String(b.webhookUrl).trim());
-    if (b.webhookType     !== undefined) setSetting("webhookType",     WEBHOOK_TYPES.includes(b.webhookType) ? b.webhookType : "generic");
-    if (b.theme           !== undefined) setSetting("theme",           ["dark", "light", "contrast"].includes(b.theme) ? b.theme : "dark");
-    if (b.alertOnDrop     !== undefined) setSetting("alertOnDrop",     b.alertOnDrop ? "1" : "0");
-    if (b.dropThreshold   !== undefined) setSetting("dropThreshold",   toNum(b.dropThreshold, 50));
+    if (b.searchQuery !== undefined) setSetting("searchQuery", String(b.searchQuery).trim());
+    if (b.webhookUrl !== undefined) setSetting("webhookUrl", String(b.webhookUrl).trim());
+    if (b.webhookType !== undefined)
+      setSetting("webhookType", WEBHOOK_TYPES.includes(b.webhookType) ? b.webhookType : "generic");
+    if (b.theme !== undefined)
+      setSetting("theme", ["dark", "light", "contrast"].includes(b.theme) ? b.theme : "dark");
+    if (b.alertOnDrop !== undefined) setSetting("alertOnDrop", b.alertOnDrop ? "1" : "0");
+    if (b.dropThreshold !== undefined) setSetting("dropThreshold", toNum(b.dropThreshold, 50));
     if (b.alertOnMilestone !== undefined) setSetting("alertOnMilestone", b.alertOnMilestone ? "1" : "0");
-    if (b.digestEnabled   !== undefined) setSetting("digestEnabled",   b.digestEnabled ? "1" : "0");
-    if (b.digestTime      !== undefined) setSetting("digestTime",      /^\d{1,2}:\d{2}$/.test(String(b.digestTime)) ? String(b.digestTime) : "09:00");
-    if (b.autoBackup      !== undefined) setSetting("autoBackup",      b.autoBackup ? "1" : "0");
-    if (b.backfillDays    !== undefined) setSetting("backfillDays",    Math.min(730, Math.max(7, toNum(b.backfillDays, 90))));
-    if (b.backfillMaxPages !== undefined) setSetting("backfillMaxPages", Math.min(100, Math.max(1, toNum(b.backfillMaxPages, 20))));
-    if (b.quotaFloor      !== undefined) setSetting("quotaFloor",      Math.max(0, toNum(b.quotaFloor, 3)));
-    if (b.externalIntervalHours !== undefined) setSetting("externalIntervalHours", Math.max(0, toNum(b.externalIntervalHours, 24)));
-    if (b.rollupAfterDays !== undefined) setSetting("rollupAfterDays", Math.max(0, toNum(b.rollupAfterDays, 30)));
+    if (b.digestEnabled !== undefined) setSetting("digestEnabled", b.digestEnabled ? "1" : "0");
+    if (b.digestTime !== undefined)
+      setSetting("digestTime", /^\d{1,2}:\d{2}$/.test(String(b.digestTime)) ? String(b.digestTime) : "09:00");
+    if (b.autoBackup !== undefined) setSetting("autoBackup", b.autoBackup ? "1" : "0");
+    if (b.backfillDays !== undefined)
+      setSetting("backfillDays", Math.min(730, Math.max(7, toNum(b.backfillDays, 90))));
+    if (b.backfillMaxPages !== undefined)
+      setSetting("backfillMaxPages", Math.min(100, Math.max(1, toNum(b.backfillMaxPages, 20))));
+    if (b.quotaFloor !== undefined) setSetting("quotaFloor", Math.max(0, toNum(b.quotaFloor, 3)));
+    if (b.externalIntervalHours !== undefined)
+      setSetting("externalIntervalHours", Math.max(0, toNum(b.externalIntervalHours, 24)));
+    if (b.rollupAfterDays !== undefined)
+      setSetting("rollupAfterDays", Math.max(0, toNum(b.rollupAfterDays, 30)));
     if (b.sourceIntervals !== undefined && typeof b.sourceIntervals === "object") {
       const clean = {};
       for (const [k, v] of Object.entries(b.sourceIntervals)) {
@@ -517,7 +595,7 @@ app.put("/api/settings", (req, res) => {
       }
       setSetting("sourceIntervals", JSON.stringify(clean));
     }
-    if (b.repoThresholds  !== undefined && b.repoThresholds && typeof b.repoThresholds === "object") {
+    if (b.repoThresholds !== undefined && b.repoThresholds && typeof b.repoThresholds === "object") {
       const clean = {};
       for (const [k, v] of Object.entries(b.repoThresholds)) {
         const n = Number(v);
@@ -533,21 +611,55 @@ app.put("/api/settings", (req, res) => {
 
 // ── 仓库列表 ──────────────────────────────────────────────────────
 app.get("/api/repos", (req, res) => {
-  const minStars     = toNum(req.query.minStars,  toNum(getSetting("minStars", DEFAULT_MIN_STARS),  DEFAULT_MIN_STARS));
-  const minGrowth    = toNum(req.query.minGrowth, toNum(getSetting("minGrowth", DEFAULT_MIN_GROWTH), DEFAULT_MIN_GROWTH));
-  const language     = req.query.language || "";
-  const sort         = ["stars", "metric", "growth", "newest", "name", "language"].includes(req.query.sort) ? req.query.sort : "growth";
-  const window       = ["day", "week", "month"].includes(req.query.window) ? req.query.window : "day";
-  const page         = Math.max(1, toNum(req.query.page, 1));
-  const pageSize     = Math.min(200, Math.max(1, toNum(req.query.pageSize, 50)));
-  const todayOnly    = req.query.todayOnly === "1" || req.query.todayOnly === "true";
-  const keyword      = (req.query.keyword || "").trim();
-  const onlyCustom   = req.query.onlyCustom === "1";
+  const minStars = toNum(
+    req.query.minStars,
+    toNum(getSetting("minStars", DEFAULT_MIN_STARS), DEFAULT_MIN_STARS),
+  );
+  const minGrowth = toNum(
+    req.query.minGrowth,
+    toNum(getSetting("minGrowth", DEFAULT_MIN_GROWTH), DEFAULT_MIN_GROWTH),
+  );
+  const language = req.query.language || "";
+  const sort = ["stars", "metric", "growth", "newest", "name", "language"].includes(req.query.sort)
+    ? req.query.sort
+    : "growth";
+  const window = ["day", "week", "month"].includes(req.query.window) ? req.query.window : "day";
+  const page = Math.max(1, toNum(req.query.page, 1));
+  const pageSize = Math.min(200, Math.max(1, toNum(req.query.pageSize, 50)));
+  const todayOnly = req.query.todayOnly === "1" || req.query.todayOnly === "true";
+  const keyword = (req.query.keyword || "").trim();
+  const onlyCustom = req.query.onlyCustom === "1";
   const onlyFavorite = req.query.onlyFavorite === "1";
-  const metric       = toMetric(req.query.metric);
+  const metric = toMetric(req.query.metric);
 
-  const result = listRepos({ minStars, minGrowth, language, sort, window, page, pageSize, todayOnly, keyword, onlyCustom, onlyFavorite, metric, userId: req.userId || 0 });
-  res.json({ ...result, minStars, minGrowth, languages: listLanguages(), sort, window, keyword, onlyCustom, onlyFavorite, metric, metrics: AVAILABLE_METRICS });
+  const result = listRepos({
+    minStars,
+    minGrowth,
+    language,
+    sort,
+    window,
+    page,
+    pageSize,
+    todayOnly,
+    keyword,
+    onlyCustom,
+    onlyFavorite,
+    metric,
+    userId: req.userId || 0,
+  });
+  res.json({
+    ...result,
+    minStars,
+    minGrowth,
+    languages: listLanguages(),
+    sort,
+    window,
+    keyword,
+    onlyCustom,
+    onlyFavorite,
+    metric,
+    metrics: AVAILABLE_METRICS,
+  });
 });
 
 app.get("/api/repos/:id/history", (req, res) => {
@@ -581,13 +693,16 @@ app.get("/api/repos/:id/enrich", rateLimit({ windowMs: 60_000, max: 20 }), async
 
 // ── C1: 多仓库对比 ──────────────────────────────────────────────
 app.get("/api/compare", (req, res) => {
-  const ids = String(req.query.ids || "").split(",")
+  const ids = String(req.query.ids || "")
+    .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isInteger(n) && n > 0)
     .slice(0, 8);
   if (!ids.length) return res.status(400).json({ error: "请至少选择一个仓库（ids=1,2,3）" });
   const window = ["day", "week", "month"].includes(req.query.window) ? req.query.window : "day";
-  res.json(compareRepos({ ids, window, metric: toMetric(req.query.metric), maxPoints: toNum(req.query.points, 90) }));
+  res.json(
+    compareRepos({ ids, window, metric: toMetric(req.query.metric), maxPoints: toNum(req.query.points, 90) }),
+  );
 });
 
 // ── C2: 全局趋势 ────────────────────────────────────────────────
@@ -599,7 +714,11 @@ app.get("/api/overview", (req, res) => {
 const repoThresholdKey = (userId = 0) => (userId ? `repoThresholds:${userId}` : "repoThresholds");
 
 function readRepoThresholds(userId = 0) {
-  try { return JSON.parse(getSetting(repoThresholdKey(userId), "{}") || "{}") || {}; } catch { return {}; }
+  try {
+    return JSON.parse(getSetting(repoThresholdKey(userId), "{}") || "{}") || {};
+  } catch {
+    return {};
+  }
 }
 
 app.get("/api/repos/:id/alert", (req, res) => {
@@ -634,8 +753,14 @@ app.put("/api/repos/:id/alert", (req, res) => {
 app.post("/api/repos/:id/backfill", rateLimit({ windowMs: 60_000, max: 6 }), async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "无效的 ID" });
-  const days = Math.min(730, Math.max(7, toNum(req.body?.days, Number(getSetting("backfillDays", 90)) || 90)));
-  const maxPages = Math.min(100, Math.max(1, toNum(req.body?.maxPages, Number(getSetting("backfillMaxPages", 20)) || 20)));
+  const days = Math.min(
+    730,
+    Math.max(7, toNum(req.body?.days, Number(getSetting("backfillDays", 90)) || 90)),
+  );
+  const maxPages = Math.min(
+    100,
+    Math.max(1, toNum(req.body?.maxPages, Number(getSetting("backfillMaxPages", 20)) || 20)),
+  );
   try {
     const r = await backfillRepo({ id, token: TOKEN, days, maxPages });
     if (r.error) return res.status(404).json({ error: r.error });
@@ -648,8 +773,14 @@ app.post("/api/repos/:id/backfill", rateLimit({ windowMs: 60_000, max: 6 }), asy
 app.post("/api/backfill", rateLimit({ windowMs: 60_000, max: 3 }), async (req, res) => {
   const scope = ["custom", "favorites", "all"].includes(req.body?.scope) ? req.body.scope : "custom";
   const limit = Math.min(50, Math.max(1, toNum(req.body?.limit, 10)));
-  const days = Math.min(730, Math.max(7, toNum(req.body?.days, Number(getSetting("backfillDays", 90)) || 90)));
-  const maxPages = Math.min(100, Math.max(1, toNum(req.body?.maxPages, Number(getSetting("backfillMaxPages", 20)) || 20)));
+  const days = Math.min(
+    730,
+    Math.max(7, toNum(req.body?.days, Number(getSetting("backfillDays", 90)) || 90)),
+  );
+  const maxPages = Math.min(
+    100,
+    Math.max(1, toNum(req.body?.maxPages, Number(getSetting("backfillMaxPages", 20)) || 20)),
+  );
   const ids = resolveBackfillScope(scope, limit);
   if (!ids.length) return res.status(400).json({ error: "该范围内没有可回填的仓库" });
   try {
@@ -691,9 +822,12 @@ app.get("/api/custom-repos", (req, res) => {
 app.post("/api/custom-repos", (req, res) => {
   const fullName = (req.body?.full_name || "").trim();
   if (!fullName) return res.status(400).json({ error: "请输入仓库地址" });
-  if (!/^[\w-]+\/[\w.-]+$/.test(fullName)) return res.status(400).json({ error: "格式不正确，应为 owner/repo" });
-  if (searchCustomRepo(fullName, req.userId || 0)) return res.status(409).json({ error: "该仓库已在追踪列表中" });
-  if (!addCustomRepo(fullName, req.body?.note || "", req.userId || 0)) return res.status(409).json({ error: "添加失败，可能已存在" });
+  if (!/^[\w-]+\/[\w.-]+$/.test(fullName))
+    return res.status(400).json({ error: "格式不正确，应为 owner/repo" });
+  if (searchCustomRepo(fullName, req.userId || 0))
+    return res.status(409).json({ error: "该仓库已在追踪列表中" });
+  if (!addCustomRepo(fullName, req.body?.note || "", req.userId || 0))
+    return res.status(409).json({ error: "添加失败，可能已存在" });
   res.json({ ok: true });
 });
 
@@ -706,7 +840,10 @@ app.delete("/api/custom-repos/:name", (req, res) => {
 app.get("/api/alerts", (req, res) => {
   const limit = Math.min(100, Math.max(1, toNum(req.query.limit, 20)));
   const offset = Math.max(0, toNum(req.query.offset, 0));
-  res.json({ unread: getAlertsUnreadCount(req.userId || 0), recent: getRecentAlerts(limit, offset, req.userId || 0) });
+  res.json({
+    unread: getAlertsUnreadCount(req.userId || 0),
+    recent: getRecentAlerts(limit, offset, req.userId || 0),
+  });
 });
 
 app.post("/api/alerts/read", (req, res) => {
@@ -717,15 +854,17 @@ app.post("/api/alerts/read", (req, res) => {
 // ── 🧪 告警规则回测 ─────────────────────────────────────
 app.get("/api/alerts/backtest", (req, res) => {
   const bool = (v) => (v === undefined ? undefined : v === "1" || v === "true");
-  res.json(backtestAlerts({
-    days: toNum(req.query.days, 90),
-    threshold: req.query.threshold === undefined ? undefined : toNum(req.query.threshold, 50),
-    dropThreshold: req.query.dropThreshold === undefined ? undefined : toNum(req.query.dropThreshold, 50),
-    alertOnDrop: bool(req.query.onDrop),
-    alertOnMilestone: bool(req.query.onMilestone),
-    minStars: toNum(req.query.minStars, 0),
-    maxFires: toNum(req.query.limit, 200),
-  }));
+  res.json(
+    backtestAlerts({
+      days: toNum(req.query.days, 90),
+      threshold: req.query.threshold === undefined ? undefined : toNum(req.query.threshold, 50),
+      dropThreshold: req.query.dropThreshold === undefined ? undefined : toNum(req.query.dropThreshold, 50),
+      alertOnDrop: bool(req.query.onDrop),
+      alertOnMilestone: bool(req.query.onMilestone),
+      minStars: toNum(req.query.minStars, 0),
+      maxFires: toNum(req.query.limit, 200),
+    }),
+  );
 });
 
 // ── 语言趋势 + 排名变化（P1-5）────────────────────────────────────
@@ -758,35 +897,42 @@ app.get("/api/trends/surge", (req, res) => {
 
 // ── 🔎 异常检测（z-score，相对自身历史）────────────────────────
 app.get("/api/trends/anomaly", (req, res) => {
-  res.json(getAnomalies({
-    days: toNum(req.query.days, 30),
-    z: Number(req.query.z) || 2.5,
-    limit: toNum(req.query.limit, 12),
-    minSamples: toNum(req.query.minSamples, 5),
-    minStars: toNum(req.query.minStars, 0),
-  }));
+  res.json(
+    getAnomalies({
+      days: toNum(req.query.days, 30),
+      z: Number(req.query.z) || 2.5,
+      limit: toNum(req.query.limit, 12),
+      minSamples: toNum(req.query.minSamples, 5),
+      minStars: toNum(req.query.minStars, 0),
+    }),
+  );
 });
 
 // ── 🐎 黑马榜（低星高增速）──────────────────────────────────
 app.get("/api/trends/rising", (req, res) => {
-  res.json(getRisingStars({
-    limit: toNum(req.query.limit, 15),
-    maxStars: req.query.maxStars === undefined || req.query.maxStars === "" ? 0 : toNum(req.query.maxStars, 0),
-    minDays: toNum(req.query.minDays, 14),
-    minStars: toNum(req.query.minStars, 100),
-  }));
+  res.json(
+    getRisingStars({
+      limit: toNum(req.query.limit, 15),
+      maxStars:
+        req.query.maxStars === undefined || req.query.maxStars === "" ? 0 : toNum(req.query.maxStars, 0),
+      minDays: toNum(req.query.minDays, 14),
+      minStars: toNum(req.query.minStars, 100),
+    }),
+  );
 });
 
 // ── 🌊 事件聚类（同一天多个仓库同时异动）─────────────────────
 app.get("/api/trends/events", (req, res) => {
-  res.json(getEvents({
-    days: toNum(req.query.days, 30),
-    z: Number(req.query.z) || 2,
-    minRepos: toNum(req.query.minRepos, 3),
-    minSamples: toNum(req.query.minSamples, 4),
-    minStars: toNum(req.query.minStars, 0),
-    limit: toNum(req.query.limit, 12),
-  }));
+  res.json(
+    getEvents({
+      days: toNum(req.query.days, 30),
+      z: Number(req.query.z) || 2,
+      minRepos: toNum(req.query.minRepos, 3),
+      minSamples: toNum(req.query.minSamples, 4),
+      minStars: toNum(req.query.minStars, 0),
+      limit: toNum(req.query.limit, 12),
+    }),
+  );
 });
 
 // ── ⏪ 历史回放（P0-2）────────────────────────────────────────
@@ -814,7 +960,7 @@ app.get("/api/stats", (req, res) => {
     auto: {
       schedule: CRON,
       enabled: cronValid,
-      nextRun: cronValid && cronTask ? cronTask.getNextRun()?.toISOString() ?? null : null,
+      nextRun: cronValid && cronTask ? (cronTask.getNextRun()?.toISOString() ?? null) : null,
       ...getScheduleState(),
     },
     autoPoll: Number(getSetting("autoPollMinutes", 0)) || 0,
@@ -840,7 +986,7 @@ app.get("/api/webhook-types", (_req, res) => res.json({ types: WEBHOOK_TYPES }))
 
 app.post("/api/notify/test", async (req, res) => {
   const url = (req.body?.url || getSetting("webhookUrl", "") || "").trim();
-  const type = (req.body?.type || getSetting("webhookType", "generic") || "generic");
+  const type = req.body?.type || getSetting("webhookType", "generic") || "generic";
   if (!url) return res.status(400).json({ error: "请先填写 Webhook 地址" });
   const result = await testWebhook(url, type);
   res.status(result.ok ? 200 : 502).json(result);
@@ -862,7 +1008,13 @@ app.get("/api/push/public-key", (_req, res) => res.json({ publicKey: getVapidKey
 app.get("/api/push/subscriptions", (req, res) => {
   const subs = listPushSubscriptions(req.userId || 0).map((s) => ({
     id: s.id,
-    endpointHost: (() => { try { return new URL(s.endpoint).host; } catch { return "unknown"; } })(),
+    endpointHost: (() => {
+      try {
+        return new URL(s.endpoint).host;
+      } catch {
+        return "unknown";
+      }
+    })(),
     created_at: s.created_at,
     last_ok_at: s.last_ok_at,
     last_error: s.last_error,
@@ -873,13 +1025,15 @@ app.get("/api/push/subscriptions", (req, res) => {
 app.post("/api/push/subscribe", (req, res) => {
   const b = req.body || {};
   try {
-    res.json(subscribePush({
-      endpoint: b.endpoint,
-      p256dh: b.keys?.p256dh || b.p256dh,
-      auth: b.keys?.auth || b.auth,
-      userAgent: req.get("user-agent"),
-      userId: req.userId || 0,
-    }));
+    res.json(
+      subscribePush({
+        endpoint: b.endpoint,
+        p256dh: b.keys?.p256dh || b.p256dh,
+        auth: b.keys?.auth || b.auth,
+        userAgent: req.get("user-agent"),
+        userId: req.userId || 0,
+      }),
+    );
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -895,12 +1049,16 @@ app.post("/api/push/unsubscribe", (req, res) => {
 
 app.post("/api/push/test", rateLimit({ windowMs: 60_000, max: 5 }), async (req, res) => {
   try {
-    const result = await sendPushToAll({
-      title: "⭐ GitHub Star Tracker",
-      body: "这是一条测试推送。若你看到它，说明系统级通知已打通。",
-      url: "/",
-    }, req.userId || 0);
-    if (!result.total) return res.status(400).json({ error: "还没有任何推送订阅，请先在设置页启用浏览器通知" });
+    const result = await sendPushToAll(
+      {
+        title: "⭐ GitHub Star Tracker",
+        body: "这是一条测试推送。若你看到它，说明系统级通知已打通。",
+        url: "/",
+      },
+      req.userId || 0,
+    );
+    if (!result.total)
+      return res.status(400).json({ error: "还没有任何推送订阅，请先在设置页启用浏览器通知" });
     res.json({ ok: result.sent > 0, ...result });
   } catch (e) {
     res.status(502).json({ error: "推送失败：" + e.message });
@@ -909,8 +1067,11 @@ app.post("/api/push/test", rateLimit({ windowMs: 60_000, max: 5 }), async (req, 
 
 // ── 维护 ──────────────────────────────────────────────────────────
 app.post("/api/maintenance/cleanup", (_req, res) => {
-  try { res.json({ ok: true, ...runCleanup() }); }
-  catch (e) { res.status(500).json({ error: "清理失败：" + e.message }); }
+  try {
+    res.json({ ok: true, ...runCleanup() });
+  } catch (e) {
+    res.status(500).json({ error: "清理失败：" + e.message });
+  }
 });
 
 app.get("/api/maintenance/export", (req, res) => {
@@ -957,7 +1118,11 @@ app.get("/badge/:owner/:name", (req, res) => {
     return res.send(renderBadge("GitHub", "not tracked", "#8b949e"));
   }
 
-  const metricMeta = { stars: ["Stars", data.stars, data.growth], forks: ["Forks", data.forks, data.growthForks], issues: ["Issues", data.open_issues, data.growthIssues] };
+  const metricMeta = {
+    stars: ["Stars", data.stars, data.growth],
+    forks: ["Forks", data.forks, data.growthForks],
+    issues: ["Issues", data.open_issues, data.growthIssues],
+  };
   const [labelBase, value, growth] = metricMeta[metric];
   const label = req.query.label ? String(req.query.label) : labelBase;
   const suffix = growth != null && growth !== 0 ? ` (${growth > 0 ? "+" : ""}${growth})` : "";
@@ -985,21 +1150,34 @@ app.get("/spark/:owner/:name", (req, res) => {
 });
 
 // ── RSS / Atom 订阅（/api 下，可用 FEED_TOKEN 走 ?token= 认证）───────
-const xmlEscape = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({
-  "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;",
-}[c]));
+const xmlEscape = (s) =>
+  String(s ?? "").replace(
+    /[<>&"']/g,
+    (c) =>
+      ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&apos;",
+      })[c],
+  );
 
 function buildAtom(req, { title, kind, entries }) {
   const base = `${req.protocol}://${req.get("host")}`;
   const self = `${base}/api/feed/${kind}.xml`;
   const updated = new Date().toISOString();
-  const items = entries.map((e) => `  <entry>
+  const items = entries
+    .map(
+      (e) => `  <entry>
     <title>${xmlEscape(e.title)}</title>
     <link href="${xmlEscape(e.link)}"/>
     <id>${xmlEscape(e.id)}</id>
     <updated>${xmlEscape(e.updated)}</updated>
     <summary>${xmlEscape(e.summary || "")}</summary>
-  </entry>`).join("\n");
+  </entry>`,
+    )
+    .join("\n");
   return `<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>${xmlEscape(title)}</title>
@@ -1028,7 +1206,11 @@ app.get("/api/feed/:kind", (req, res) => {
     }));
   } else if (kind === "new") {
     title = "GitHub Star Tracker · 新收录";
-    entries = db.prepare("SELECT full_name, stars, language, first_seen_at FROM repos ORDER BY first_seen_at DESC LIMIT 30").all()
+    entries = db
+      .prepare(
+        "SELECT full_name, stars, language, first_seen_at FROM repos ORDER BY first_seen_at DESC LIMIT 30",
+      )
+      .all()
       .map((r) => ({
         title: `🆕 ${r.full_name}（★${Number(r.stars).toLocaleString("en-US")}）`,
         link: gh(r.full_name),
@@ -1064,12 +1246,16 @@ app.post("/api/metrics", async (req, res) => {
   const source = String(req.body?.source || "").trim();
   const key = String(req.body?.key || "").trim();
   if (!source || !key) return res.status(400).json({ error: "缺少 source 或 key" });
-  if (!SOURCE_LIST.some((s) => s.key === source)) return res.status(400).json({ error: `未知数据源: ${source}` });
+  if (!SOURCE_LIST.some((s) => s.key === source))
+    return res.status(400).json({ error: `未知数据源: ${source}` });
 
   // 先验证能取到数据
   let probe;
-  try { probe = await fetchSource(source, key); }
-  catch (e) { return res.status(400).json({ error: e.message }); }
+  try {
+    probe = await fetchSource(source, key);
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
   if (!probe) return res.status(404).json({ error: "未找到该指标，请检查名称是否正确" });
 
   const r = addTrackedMetric({ source, key, label: probe.label || key, url: probe.url, unit: probe.unit });
@@ -1117,14 +1303,18 @@ function startScheduler() {
     });
   }
 
-  cron.schedule(POLL_TICK, () => {
-    const minutes = Number(getSetting("autoPollMinutes", 0)) || 0;
-    if (minutes > 0 && Date.now() - lastPollAt >= minutes * 60 * 1000) {
-      lastPollAt = Date.now();
-      runScheduledRefresh({ token: TOKEN }).catch((e) => logger.error("轮询刷新异常", { error: e.message }));
-    }
-    checkDueDigest().catch((e) => logger.error("摘要检查异常", { error: e.message }));
-  }).unref?.();
+  cron
+    .schedule(POLL_TICK, () => {
+      const minutes = Number(getSetting("autoPollMinutes", 0)) || 0;
+      if (minutes > 0 && Date.now() - lastPollAt >= minutes * 60 * 1000) {
+        lastPollAt = Date.now();
+        runScheduledRefresh({ token: TOKEN }).catch((e) =>
+          logger.error("轮询刷新异常", { error: e.message }),
+        );
+      }
+      checkDueDigest().catch((e) => logger.error("摘要检查异常", { error: e.message }));
+    })
+    .unref?.();
 
   // 每日自动备份（保留最近 5 份），可在设置中关闭
   try {
@@ -1144,7 +1334,11 @@ function startScheduler() {
   // 每日清理 + 降采样（备份之后）
   try {
     cron.schedule("30 3 * * *", () => {
-      try { runCleanup(); } catch (e) { logger.warn("清理任务失败", { error: e.message }); }
+      try {
+        runCleanup();
+      } catch (e) {
+        logger.warn("清理任务失败", { error: e.message });
+      }
     });
   } catch (e) {
     logger.warn("清理任务未启用", { error: e.message });
@@ -1169,10 +1363,13 @@ export function startServer() {
   if (TOKEN) {
     checkToken(TOKEN)
       .then((state) => {
-        if (state === "invalid") logger.warn(`${TOKEN_SOURCE} 无效（GitHub 返回 401），已回退匿名模式，请更换 token`);
+        if (state === "invalid")
+          logger.warn(`${TOKEN_SOURCE} 无效（GitHub 返回 401），已回退匿名模式，请更换 token`);
         else if (state === "ok") logger.info(`${TOKEN_SOURCE} 校验通过`);
       })
-      .catch(() => { /* 探测失败不影响启动 */ });
+      .catch(() => {
+        /* 探测失败不影响启动 */
+      });
   }
 
   function shutdown(signal) {
@@ -1183,7 +1380,10 @@ export function startServer() {
       process.exit(0);
     });
     // 兜底：5 秒后强制退出
-    setTimeout(() => { closeDb(); process.exit(0); }, 5000).unref();
+    setTimeout(() => {
+      closeDb();
+      process.exit(0);
+    }, 5000).unref();
   }
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));

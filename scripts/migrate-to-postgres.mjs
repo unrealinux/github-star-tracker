@@ -36,7 +36,9 @@ if (!databaseUrl && !pgDataDir) {
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 console.log(`→ 源 SQLite：${from}`);
-console.log(`→ 目标：${databaseUrl ? `外部 PostgreSQL (${databaseUrl.replace(/:[^:@/]+@/, ":***@")})` : `内嵌 PGlite (${pgDataDir})`}`);
+console.log(
+  `→ 目标：${databaseUrl ? `外部 PostgreSQL (${databaseUrl.replace(/:[^:@/]+@/, ":***@")})` : `内嵌 PGlite (${pgDataDir})`}`,
+);
 
 // 1) 从 SQLite 导出 JSON（子进程，避免同进程混用两种驱动）
 const exp = spawnSync(process.execPath, [join(root, "scripts", "_export-sqlite.mjs")], {
@@ -57,7 +59,7 @@ try {
 }
 console.log(
   `  导出：repos=${payload.repos?.length ?? 0} snapshots=${payload.snapshots?.length ?? 0} ` +
-  `users=${payload.users?.length ?? 0} indices=${payload.indices?.length ?? 0}`
+    `users=${payload.users?.length ?? 0} indices=${payload.indices?.length ?? 0}`,
 );
 
 // 2) 导入 PostgreSQL

@@ -13,6 +13,10 @@
     "test:watch": "node --test --watch tests/*.test.js",
     "test:postgres": "DB_DRIVER=postgres node --test tests/*.test.js",
     "test:frontend": "node --test tests/frontend.test.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "start:postgres": "DB_DRIVER=postgres node server.js",
     "migrate:postgres": "node scripts/migrate-to-postgres.mjs"
   },
@@ -23,5 +27,12 @@
   "optionalDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.9.9"
   }
 }

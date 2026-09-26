@@ -10,9 +10,17 @@ function textWidth(s) {
 }
 
 function escapeXml(s) {
-  return String(s ?? "").replace(/[<>&"']/g, (c) => ({
-    "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;",
-  }[c]));
+  return String(s ?? "").replace(
+    /[<>&"']/g,
+    (c) =>
+      ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&apos;",
+      })[c],
+  );
 }
 
 /**
@@ -52,12 +60,12 @@ export function renderBadge(label, value, color = "#58a6ff") {
 
 /** 根据增长量选择颜色 */
 export function colorForGrowth(growth) {
-  if (growth == null) return "#8b949e";   // 灰：待积累
-  if (growth >= 100) return "#f59e0b";    // 橙：爆发
-  if (growth >= 10)  return "#22c55e";    // 绿：健康
-  if (growth > 0)    return "#58a6ff";    // 蓝：微增
-  if (growth === 0)  return "#8b949e";    // 灰：持平
-  return "#ef4444";                        // 红：下降
+  if (growth == null) return "#8b949e"; // 灰：待积累
+  if (growth >= 100) return "#f59e0b"; // 橙：爆发
+  if (growth >= 10) return "#22c55e"; // 绿：健康
+  if (growth > 0) return "#58a6ff"; // 蓝：微增
+  if (growth === 0) return "#8b949e"; // 灰：持平
+  return "#ef4444"; // 红：下降
 }
 
 /** 数值紧凑格式：12345 → 12.3k */
@@ -76,10 +84,12 @@ export function renderSparkline(values, { width = 120, height = 32, color = "#58
   const vals = Array.isArray(values) ? values.filter((v) => typeof v === "number" && Number.isFinite(v)) : [];
   if (vals.length < 2) return renderBadge("trend", "no data", "#8b949e");
 
-  const min = Math.min(...vals), max = Math.max(...vals);
+  const min = Math.min(...vals),
+    max = Math.max(...vals);
   const range = max - min || 1;
   const pad = 3;
-  const iw = width - pad * 2, ih = height - pad * 2;
+  const iw = width - pad * 2,
+    ih = height - pad * 2;
   const step = iw / (vals.length - 1);
   const pts = vals.map((v, i) => [pad + i * step, pad + ih * (1 - (v - min) / range)]);
   const line = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");

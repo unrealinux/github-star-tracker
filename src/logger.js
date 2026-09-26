@@ -20,13 +20,13 @@ function emit(lvl, msg, meta) {
 
 export const logger = {
   debug: (msg, meta) => emit("debug", msg, meta),
-  info:  (msg, meta) => emit("info", msg, meta),
-  warn:  (msg, meta) => emit("warn", msg, meta),
+  info: (msg, meta) => emit("info", msg, meta),
+  warn: (msg, meta) => emit("warn", msg, meta),
   error: (msg, meta) => emit("error", msg, meta),
   child: (base) => ({
     debug: (m, meta) => emit("debug", m, { ...base, ...meta }),
-    info:  (m, meta) => emit("info", m, { ...base, ...meta }),
-    warn:  (m, meta) => emit("warn", m, { ...base, ...meta }),
+    info: (m, meta) => emit("info", m, { ...base, ...meta }),
+    warn: (m, meta) => emit("warn", m, { ...base, ...meta }),
     error: (m, meta) => emit("error", m, { ...base, ...meta }),
   }),
 };

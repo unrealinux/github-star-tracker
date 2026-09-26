@@ -15,23 +15,78 @@ process.env.DB_DIR = tmp;
 process.env.DB_PATH = join(tmp, "test.db");
 
 const {
-  db, setSetting, getSetting, toggleFavorite, listFavorites, countFavorites,
-  addCustomRepo, listCustomRepos, countCustomRepos, removeCustomRepo, searchCustomRepo,
-  insertAlert, getAlertsUnreadCount, markAlertsRead, hasRecentAlert,
-  recordApiUsage, getApiQuotaInfo, cleanupOldSnapshots, getRepoIdMap, getRetentionDays,
-  exportData, importData,
-  addIndex, getIndex, listIndices, removeIndex,
-  addTrackedQuery, listTrackedQueries, removeTrackedQuery, getTrackedQuery,
-  replaceQueryMembers, getQueryMemberIds,
-  renameRepo, markRepoStale, clearRepoStale, rollupOldSnapshots,
+  db,
+  setSetting,
+  getSetting,
+  toggleFavorite,
+  countFavorites,
+  addCustomRepo,
+  listCustomRepos,
+  countCustomRepos,
+  removeCustomRepo,
+  searchCustomRepo,
+  insertAlert,
+  getAlertsUnreadCount,
+  markAlertsRead,
+  hasRecentAlert,
+  recordApiUsage,
+  getApiQuotaInfo,
+  cleanupOldSnapshots,
+  getRepoIdMap,
+  getRetentionDays,
+  exportData,
+  importData,
+  addIndex,
+  getIndex,
+  listIndices,
+  removeIndex,
+  addTrackedQuery,
+  removeTrackedQuery,
+  getTrackedQuery,
+  replaceQueryMembers,
+  getQueryMemberIds,
+  renameRepo,
+  markRepoStale,
+  clearRepoStale,
+  rollupOldSnapshots,
 } = await import("../src/db.js");
-const { listRepos, predictGrowth, getRankChanges, listLanguages, getLanguageTrends, getStats, getLeaderboard, getSurges, listReposAt, getBadgeData, evaluateAlertRules, windowBaseline, compareRepos, getOverview, findSimilarRepos, getAnomalies, getRisingStars, getSparkData, getEvents, backtestAlerts,
-  resolveIndexMembers, getIndexSeries, getQueryAggregate, refreshTrackedQueries, refreshCustomRepos, getRepoHistory } = await import("../src/tracker.js");
+const {
+  listRepos,
+  predictGrowth,
+  getRankChanges,
+  listLanguages,
+  getLanguageTrends,
+  getStats,
+  getLeaderboard,
+  getSurges,
+  listReposAt,
+  getBadgeData,
+  evaluateAlertRules,
+  windowBaseline,
+  compareRepos,
+  getOverview,
+  findSimilarRepos,
+  getAnomalies,
+  getRisingStars,
+  getSparkData,
+  getEvents,
+  backtestAlerts,
+  resolveIndexMembers,
+  getIndexSeries,
+  getQueryAggregate,
+  refreshTrackedQueries,
+  refreshCustomRepos,
+  getRepoHistory,
+} = await import("../src/tracker.js");
 
 // ── 测试数据填充 ──
 function seed() {
-  db.exec("DELETE FROM snapshots; DELETE FROM repos; DELETE FROM favorites; DELETE FROM custom_repos; DELETE FROM alerts;");
-  const ins = db.prepare("INSERT INTO repos (full_name, name, owner, url, description, language, stars, is_custom) VALUES (?,?,?,?,?,?,?,?)");
+  db.exec(
+    "DELETE FROM snapshots; DELETE FROM repos; DELETE FROM favorites; DELETE FROM custom_repos; DELETE FROM alerts;",
+  );
+  const ins = db.prepare(
+    "INSERT INTO repos (full_name, name, owner, url, description, language, stars, is_custom) VALUES (?,?,?,?,?,?,?,?)",
+  );
   ins.run("alpha/python-tool", "python-tool", "alpha", "http://a", "A python utility", "Python", 5000, 0);
   ins.run("beta/rust-lib", "rust-lib", "beta", "http://b", "A rust library", "Rust", 3000, 0);
   ins.run("gamma/js-app", "js-app", "gamma", "http://c", "A javascript application", "JavaScript", 1000, 0);
@@ -54,42 +109,102 @@ function seed() {
 
 describe("listRepos 过滤与分页", () => {
   let idOf;
-  before(() => { ({ idOf } = seed()); });
+  before(() => {
+    ({ idOf } = seed());
+  });
 
   test("默认返回全部仓库", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     assert.equal(r.total, 3);
     assert.equal(r.repos.length, 3);
     assert.equal(r.repos[0].full_name, "alpha/python-tool"); // 星数最高
   });
 
   test("关键词命中名称/描述", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10, keyword: "python" });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+      keyword: "python",
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "alpha/python-tool");
   });
 
   test("关键词命中描述", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10, keyword: "javascript" });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+      keyword: "javascript",
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "gamma/js-app");
   });
 
   test("按语言过滤", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "Rust", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "Rust",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "beta/rust-lib");
   });
 
   test("minStars 过滤", () => {
-    const r = listRepos({ minStars: 4000, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 4000,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "alpha/python-tool");
   });
 
   test("分页不重叠且 total 正确", () => {
-    const p1 = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 2 });
-    const p2 = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 2, pageSize: 2 });
+    const p1 = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 2,
+    });
+    const p2 = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 2,
+      pageSize: 2,
+    });
     assert.equal(p1.total, 3);
     assert.equal(p1.totalPages, 2);
     assert.equal(p1.repos.length, 2);
@@ -99,13 +214,30 @@ describe("listRepos 过滤与分页", () => {
   });
 
   test("页码越界自动收敛到最后一页", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 99, pageSize: 2 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 99,
+      pageSize: 2,
+    });
     assert.equal(r.page, 2);
   });
 
   test("onlyFavorite 过滤", () => {
     toggleFavorite(idOf("beta/rust-lib"));
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10, onlyFavorite: true });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+      onlyFavorite: true,
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "beta/rust-lib");
     assert.equal(r.repos[0].is_favorite, true);
@@ -114,7 +246,16 @@ describe("listRepos 过滤与分页", () => {
 
   test("onlyCustom 以 custom_repos 表为准（不依赖 repos.is_custom 标记）", () => {
     addCustomRepo("beta/rust-lib");
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10, onlyCustom: true });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+      onlyCustom: true,
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "beta/rust-lib");
     assert.equal(r.repos[0].is_custom, true);
@@ -128,33 +269,74 @@ describe("增长计算", () => {
   before(() => seed());
 
   test("有跨天基线时计算窗口增长", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "Python", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "Python",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     const a = r.repos[0];
-    assert.equal(a.growth, 1000);           // 4000 → 5000
+    assert.equal(a.growth, 1000); // 4000 → 5000
     // 基准快照是 3 天前（seed 用 iso(3)），所以标签必须如实写 3 天，
     // 不能写「近24h」—— 那是把 3 天的增长谎报成一天。
     assert.equal(a.growthLabel, "近3天");
   });
 
   test("负增长被正确计算", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "Rust", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "Rust",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     assert.equal(r.repos[0].growth, -500);
   });
 
   test("仅一条快照时显示待积累", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "JavaScript", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "JavaScript",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     assert.equal(r.repos[0].growth, null);
     assert.equal(r.repos[0].growthLabel, "待积累");
   });
 
   test("minGrowth 过滤掉低速项目", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 100, language: "", sort: "stars", window: "day", page: 1, pageSize: 10 });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 100,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].full_name, "alpha/python-tool");
   });
 
   test("todayOnly 只保留正增长", () => {
-    const r = listRepos({ minStars: 0, minGrowth: 0, language: "", sort: "stars", window: "day", page: 1, pageSize: 10, todayOnly: true });
+    const r = listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+      todayOnly: true,
+    });
     assert.equal(r.total, 1);
     assert.equal(r.repos[0].growth > 0, true);
   });
@@ -167,7 +349,7 @@ describe("增长窗口标签：采集中断后不得谎报近24h", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
     const ins = db.prepare(
-      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)"
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
     );
     ins.run("gap/seven", "seven", "gap", "u", "Go", 10000);
     ins.run("gap/oneday", "oneday", "gap", "u", "Go", 10000);
@@ -185,9 +367,16 @@ describe("增长窗口标签：采集中断后不得谎报近24h", () => {
     snap.run(idOf("gap/oneday"), 10000, iso(0));
   });
 
-  const find = (name) => listRepos({
-    minStars: 0, minGrowth: 0, language: "Go", sort: "stars", window: "day", page: 1, pageSize: 10,
-  }).repos.find((r) => r.full_name === name);
+  const find = (name) =>
+    listRepos({
+      minStars: 0,
+      minGrowth: 0,
+      language: "Go",
+      sort: "stars",
+      window: "day",
+      page: 1,
+      pageSize: 10,
+    }).repos.find((r) => r.full_name === name);
 
   test("中断 7 天：标「近7天」，而不是「近24h」", () => {
     const r = find("gap/seven");
@@ -210,7 +399,10 @@ describe("predictGrowth 线性回归", () => {
   test("稳定增长可预测里程碑", () => {
     const snaps = [];
     for (let i = 0; i < 5; i++) {
-      snaps.push({ stars: 100000 + i * 1000, captured_at: new Date(Date.now() - (4 - i) * 86400000).toISOString() });
+      snaps.push({
+        stars: 100000 + i * 1000,
+        captured_at: new Date(Date.now() - (4 - i) * 86400000).toISOString(),
+      });
     }
     const p = predictGrowth(snaps);
     assert.ok(p, "应返回预测");
@@ -224,7 +416,9 @@ describe("getRankChanges 排名变化", () => {
   before(() => {
     // 专用数据：制造真实的排名互换
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name, name, owner, url, description, language, stars, is_custom) VALUES (?,?,?,?,?,?,?,?)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, description, language, stars, is_custom) VALUES (?,?,?,?,?,?,?,?)",
+    );
     ins.run("swap/up", "up", "swap", "u", "", "Go", 5000, 0);
     ins.run("swap/down", "down", "swap", "d", "", "Go", 3200, 0);
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
@@ -239,17 +433,23 @@ describe("getRankChanges 排名变化", () => {
 
   test("识别上升与下降", () => {
     const r = getRankChanges("day", 10);
-    assert.ok(r.risers.some((x) => x.full_name === "swap/up"), "up 应上榜上升");
-    assert.ok(r.fallers.some((x) => x.full_name === "swap/down"), "down 应上榜下降");
+    assert.ok(
+      r.risers.some((x) => x.full_name === "swap/up"),
+      "up 应上榜上升",
+    );
+    assert.ok(
+      r.fallers.some((x) => x.full_name === "swap/down"),
+      "down 应上榜下降",
+    );
   });
 
   test("delta 反映名次变化幅度", () => {
     const r = getRankChanges("day", 10);
     const up = r.risers.find((x) => x.full_name === "swap/up");
-    assert.equal(up.delta, 1);      // 从第2升到第1
+    assert.equal(up.delta, 1); // 从第2升到第1
     assert.equal(up.rank, 1);
     assert.equal(up.prevRank, 2);
-    assert.equal(up.growth, 2000);  // 3000 → 5000
+    assert.equal(up.growth, 2000); // 3000 → 5000
   });
 });
 
@@ -315,7 +515,9 @@ describe("数据库操作", () => {
   test("hasRecentAlert 只统计窗口内告警（ISO 时间比较）", () => {
     db.exec("DELETE FROM alerts");
     const id = db.prepare("SELECT id FROM repos LIMIT 1").get().id;
-    const ins = db.prepare("INSERT INTO alerts (repo_id, threshold, growth, current_stars, triggered_at) VALUES (?,?,?,?,?)");
+    const ins = db.prepare(
+      "INSERT INTO alerts (repo_id, threshold, growth, current_stars, triggered_at) VALUES (?,?,?,?,?)",
+    );
     ins.run(id, 10, 50, 5000, new Date(Date.now() - 3 * 3600 * 1000).toISOString());
     assert.equal(hasRecentAlert(id, 2), false, "3 小时前的告警不应算作 2 小时内");
     ins.run(id, 10, 60, 5100, new Date(Date.now() - 1 * 3600 * 1000).toISOString());
@@ -348,24 +550,33 @@ describe("数据库操作", () => {
 });
 
 after(() => {
-  try { db.close(); } catch {}
-  try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+  try {
+    db.close();
+  } catch {}
+  try {
+    rmSync(tmp, { recursive: true, force: true });
+  } catch {}
 });
 
 describe("getLeaderboard 排行榜", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name, name, owner, url, description, language, stars, is_custom) VALUES (?,?,?,?,?,?,?,?)");
-    ins.run("big/slow", "slow", "big", "u", "", "Go", 900000, 0);   // 星最多但增长慢
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, description, language, stars, is_custom) VALUES (?,?,?,?,?,?,?,?)",
+    );
+    ins.run("big/slow", "slow", "big", "u", "", "Go", 900000, 0); // 星最多但增长慢
     ins.run("small/fast", "fast", "small", "u", "", "Rust", 5000, 0); // 星少但增长快
     ins.run("mid/normal", "normal", "mid", "u", "", "C", 100000, 0);
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
     const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     // 6 天跨度
-    snap.run(idOf("big/slow"), 899000, iso(6));  snap.run(idOf("big/slow"), 900000, iso(0));   // +1000/6天
-    snap.run(idOf("small/fast"), 2000, iso(6));  snap.run(idOf("small/fast"), 5000, iso(0));   // +3000/6天
-    snap.run(idOf("mid/normal"), 99000, iso(6)); snap.run(idOf("mid/normal"), 100000, iso(0)); // +1000/6天
+    snap.run(idOf("big/slow"), 899000, iso(6));
+    snap.run(idOf("big/slow"), 900000, iso(0)); // +1000/6天
+    snap.run(idOf("small/fast"), 2000, iso(6));
+    snap.run(idOf("small/fast"), 5000, iso(0)); // +3000/6天
+    snap.run(idOf("mid/normal"), 99000, iso(6));
+    snap.run(idOf("mid/normal"), 100000, iso(0)); // +1000/6天
   });
 
   test("总星榜按星数降序", () => {
@@ -390,7 +601,10 @@ describe("getLeaderboard 排行榜", () => {
   test("minStars 过滤生效", () => {
     const lb = getLeaderboard({ limit: 10, window: "day", minStars: 50000 });
     assert.ok(lb.byStars.every((r) => r.stars >= 50000));
-    assert.equal(lb.byStars.find((r) => r.full_name === "small/fast"), undefined);
+    assert.equal(
+      lb.byStars.find((r) => r.full_name === "small/fast"),
+      undefined,
+    );
   });
 
   test("sampleDays 反映采样跨度", () => {
@@ -402,7 +616,9 @@ describe("getLeaderboard 排行榜", () => {
 describe("getSurges 爆发检测（P0-1）", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
+    );
     ins.run("a/surging", "surging", "a", "u", "Go", 620);
     ins.run("b/steady", "steady", "b", "u", "Rust", 350);
     ins.run("c/decaying", "decaying", "c", "u", "C", 415);
@@ -410,9 +626,21 @@ describe("getSurges 爆发检测（P0-1）", () => {
     const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     let v;
-    v = 0; [10,10,100,200,300].forEach((d,i) => { v += d; snap.run(idOf("a/surging"), v, iso(4-i)); });
-    v = 0; [50,50,50,50,50].forEach((d,i) => { v += d; snap.run(idOf("b/steady"), v, iso(4-i)); });
-    v = 0; [200,150,50,10,5].forEach((d,i) => { v += d; snap.run(idOf("c/decaying"), v, iso(4-i)); });
+    v = 0;
+    [10, 10, 100, 200, 300].forEach((d, i) => {
+      v += d;
+      snap.run(idOf("a/surging"), v, iso(4 - i));
+    });
+    v = 0;
+    [50, 50, 50, 50, 50].forEach((d, i) => {
+      v += d;
+      snap.run(idOf("b/steady"), v, iso(4 - i));
+    });
+    v = 0;
+    [200, 150, 50, 10, 5].forEach((d, i) => {
+      v += d;
+      snap.run(idOf("c/decaying"), v, iso(4 - i));
+    });
   });
 
   test("识别加速项目", () => {
@@ -425,7 +653,10 @@ describe("getSurges 爆发检测（P0-1）", () => {
 
   test("稳定项目不误报", () => {
     const { surges } = getSurges({ limit: 10, minStars: 0 });
-    assert.equal(surges.find((s) => s.full_name === "b/steady"), undefined);
+    assert.equal(
+      surges.find((s) => s.full_name === "b/steady"),
+      undefined,
+    );
   });
 
   test("衰减项目进入衰减榜且 accel 为负", () => {
@@ -437,15 +668,17 @@ describe("getSurges 爆发检测（P0-1）", () => {
 
   test("minStars 过滤", () => {
     // a/surging 当前 620 星，b/steady 350，c/decaying 415
-    assert.equal(getSurges({ limit: 10, minStars: 600 }).surges.length, 1);  // 仅 a/surging 过筛选
-    assert.equal(getSurges({ limit: 10, minStars: 700 }).surges.length, 0);  // 全部被过滤
+    assert.equal(getSurges({ limit: 10, minStars: 600 }).surges.length, 1); // 仅 a/surging 过筛选
+    assert.equal(getSurges({ limit: 10, minStars: 700 }).surges.length, 0); // 全部被过滤
   });
 });
 
 describe("listReposAt 历史回放（P0-2）", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
+    );
     ins.run("x/one", "one", "x", "u", "Go", 2000);
     ins.run("y/two", "two", "y", "u", "Rust", 1000);
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name=?").get(n).id;
@@ -475,12 +708,26 @@ describe("listReposAt 历史回放（P0-2）", () => {
   });
 
   test("无数据时刻返回错误", () => {
-    const r = listReposAt({ at: "2000-01-01T00:00:00.000Z", window: "day", minStars: 0, sort: "stars", limit: 10, offset: 0 });
+    const r = listReposAt({
+      at: "2000-01-01T00:00:00.000Z",
+      window: "day",
+      minStars: 0,
+      sort: "stars",
+      limit: 10,
+      offset: 0,
+    });
     assert.ok(r.error);
   });
 
   test("无效时间参数报错", () => {
-    const r = listReposAt({ at: "not-a-date", window: "day", minStars: 0, sort: "stars", limit: 10, offset: 0 });
+    const r = listReposAt({
+      at: "not-a-date",
+      window: "day",
+      minStars: 0,
+      sort: "stars",
+      limit: 10,
+      offset: 0,
+    });
     assert.ok(r.error);
   });
 });
@@ -524,10 +771,13 @@ describe("badge 徽章生成（P2）", () => {
 
   test("getBadgeData 返回仓库指标与增长", () => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    db.prepare("INSERT INTO repos (full_name, name, owner, url, stars, forks, open_issues, is_custom) VALUES (?,?,?,?,?,?,?,0)")
-      .run("badge/test", "test", "badge", "u", 1500, 300, 42);
+    db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, stars, forks, open_issues, is_custom) VALUES (?,?,?,?,?,?,?,0)",
+    ).run("badge/test", "test", "badge", "u", 1500, 300, 42);
     const id = db.prepare("SELECT id FROM repos WHERE full_name=?").get("badge/test").id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,?,?,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,?,?,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     snap.run(id, 1000, 200, 30, iso(2));
     snap.run(id, 1500, 300, 42, iso(0));
@@ -560,9 +810,8 @@ describe("外部指标 / 数据源（P3）", () => {
   });
 
   test("listExternalMetrics 计算增长与日均", async () => {
-    const {
-      addTrackedMetric, insertMetricSnapshot, updateTrackedMetricValue, removeTrackedMetric,
-    } = await import("../src/db.js");
+    const { addTrackedMetric, insertMetricSnapshot, updateTrackedMetricValue, removeTrackedMetric } =
+      await import("../src/db.js");
     const { listExternalMetrics } = await import("../src/external.js");
 
     db.exec("DELETE FROM metric_snapshots; DELETE FROM tracked_metrics;");
@@ -577,7 +826,7 @@ describe("外部指标 / 数据源（P3）", () => {
     const list = listExternalMetrics("day");
     assert.equal(list.length, 1);
     assert.equal(list[0].value, 4000);
-    assert.equal(list[0].growth, 3000);          // 1000 → 4000
+    assert.equal(list[0].growth, 3000); // 1000 → 4000
     assert.equal(list[0].snapshots, 2);
     assert.ok(list[0].avgDailyGrowth > 0);
 
@@ -611,10 +860,22 @@ describe("外部指标 / 数据源（P3）", () => {
 });
 
 describe("告警规则 evaluateAlertRules（B2）", () => {
-  const base = { threshold: 50, repoThresholds: {}, alertOnDrop: false, dropThreshold: 50, alertOnMilestone: false };
+  const base = {
+    threshold: 50,
+    repoThresholds: {},
+    alertOnDrop: false,
+    dropThreshold: 50,
+    alertOnMilestone: false,
+  };
 
   test("达到全局阈值触发 growth", () => {
-    const r = evaluateAlertRules({ fullName: "a/b", repoStars: 1060, baseStars: 1000, prevStars: 1000, cfg: base });
+    const r = evaluateAlertRules({
+      fullName: "a/b",
+      repoStars: 1060,
+      baseStars: 1000,
+      prevStars: 1000,
+      cfg: base,
+    });
     assert.equal(r.length, 1);
     assert.equal(r[0].kind, "growth");
     assert.equal(r[0].growth, 60);
@@ -629,7 +890,13 @@ describe("告警规则 evaluateAlertRules（B2）", () => {
   });
 
   test("未达阈值不触发", () => {
-    const r = evaluateAlertRules({ fullName: "a/b", repoStars: 1010, baseStars: 1000, prevStars: 1000, cfg: base });
+    const r = evaluateAlertRules({
+      fullName: "a/b",
+      repoStars: 1010,
+      baseStars: 1000,
+      prevStars: 1000,
+      cfg: base,
+    });
     assert.equal(r.length, 0);
   });
 
@@ -643,7 +910,13 @@ describe("告警规则 evaluateAlertRules（B2）", () => {
 
   test("突破里程碑告警", () => {
     const cfg = { ...base, threshold: 999, alertOnMilestone: true };
-    const r = evaluateAlertRules({ fullName: "a/b", repoStars: 10020, baseStars: 9990, prevStars: 9990, cfg });
+    const r = evaluateAlertRules({
+      fullName: "a/b",
+      repoStars: 10020,
+      baseStars: 9990,
+      prevStars: 9990,
+      cfg,
+    });
     assert.equal(r.length, 1);
     assert.equal(r[0].kind, "milestone");
     assert.equal(r[0].threshold, 10000);
@@ -651,19 +924,34 @@ describe("告警规则 evaluateAlertRules（B2）", () => {
   });
 
   test("无基线不触发", () => {
-    assert.equal(evaluateAlertRules({ fullName: "a/b", repoStars: 5000, baseStars: null, prevStars: null, cfg: base }).length, 0);
+    assert.equal(
+      evaluateAlertRules({ fullName: "a/b", repoStars: 5000, baseStars: null, prevStars: null, cfg: base })
+        .length,
+      0,
+    );
   });
 });
 
 describe("告警按日均归一（采集中断不再放大）", () => {
   // 阈值是「日增星数」；基准可能是多天前的快照，拿整段跨度直接比阈值
   // 会把 N 天的增量当成一天，产生大量假告警。
-  const base = { threshold: 50, repoThresholds: {}, alertOnDrop: false, dropThreshold: 50, alertOnMilestone: false };
+  const base = {
+    threshold: 50,
+    repoThresholds: {},
+    alertOnDrop: false,
+    dropThreshold: 50,
+    alertOnMilestone: false,
+  };
 
   test("中断 7 天：存的是日均，而不是整段跨度", () => {
     // 224,009 → 232,833，历时 7.3 天（真实场景：deepseek-ai/deepseek-harness）
     const r = evaluateAlertRules({
-      fullName: "a/b", repoStars: 232833, baseStars: 224009, baseDays: 7.3, prevStars: 224009, cfg: base,
+      fullName: "a/b",
+      repoStars: 232833,
+      baseStars: 224009,
+      baseDays: 7.3,
+      prevStars: 224009,
+      cfg: base,
     });
     assert.equal(r.length, 1);
     assert.equal(r[0].kind, "growth");
@@ -675,7 +963,12 @@ describe("告警按日均归一（采集中断不再放大）", () => {
     const cfg = { ...base, threshold: 500 };
     // 7 天涨 700：整段跨度 700 会误触发，日均 100 不应触发
     const r = evaluateAlertRules({
-      fullName: "a/b", repoStars: 10700, baseStars: 10000, baseDays: 7, prevStars: 10000, cfg,
+      fullName: "a/b",
+      repoStars: 10700,
+      baseStars: 10000,
+      baseDays: 7,
+      prevStars: 10000,
+      cfg,
     });
     assert.equal(r.length, 0);
   });
@@ -683,22 +976,38 @@ describe("告警按日均归一（采集中断不再放大）", () => {
   test("掉星同样按日均归一", () => {
     const cfg = { ...base, threshold: 999, alertOnDrop: true, dropThreshold: 30 };
     const r = evaluateAlertRules({
-      fullName: "a/b", repoStars: 9650, baseStars: 10000, baseDays: 7, prevStars: 10000, cfg,
+      fullName: "a/b",
+      repoStars: 9650,
+      baseStars: 10000,
+      baseDays: 7,
+      prevStars: 10000,
+      cfg,
     });
     assert.equal(r.length, 1);
     assert.equal(r[0].kind, "drop");
-    assert.equal(r[0].growth, -50);          // -350 / 7
+    assert.equal(r[0].growth, -50); // -350 / 7
   });
 
   test("省略 baseDays 时按 1 天处理，原有语义不变", () => {
-    const r = evaluateAlertRules({ fullName: "a/b", repoStars: 1060, baseStars: 1000, prevStars: 1000, cfg: base });
+    const r = evaluateAlertRules({
+      fullName: "a/b",
+      repoStars: 1060,
+      baseStars: 1000,
+      prevStars: 1000,
+      cfg: base,
+    });
     assert.equal(r[0].growth, 60);
   });
 
   test("里程碑不受归一影响（它基于相邻快照 prevStars）", () => {
     const cfg = { ...base, threshold: 999, alertOnMilestone: true };
     const r = evaluateAlertRules({
-      fullName: "a/b", repoStars: 10020, baseStars: 9990, baseDays: 7, prevStars: 9990, cfg,
+      fullName: "a/b",
+      repoStars: 10020,
+      baseStars: 9990,
+      baseDays: 7,
+      prevStars: 9990,
+      cfg,
     });
     assert.equal(r.length, 1);
     assert.equal(r[0].kind, "milestone");
@@ -709,19 +1018,28 @@ describe("windowBaseline：窗口基准及其真实跨度", () => {
   const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString();
 
   test("有跳天基准时给出真实天数（采集中断场景）", () => {
-    const b = windowBaseline([{ stars: 100, captured_at: iso(7) }, { stars: 200, captured_at: iso(0) }]);
+    const b = windowBaseline([
+      { stars: 100, captured_at: iso(7) },
+      { stars: 200, captured_at: iso(0) },
+    ]);
     assert.equal(b.snap.stars, 100);
     assert.ok(Math.abs(b.days - 7) < 0.05, `天数应约 7，实际 ${b.days}`);
   });
 
   test("约 24h 基准时天数为 1", () => {
-    const b = windowBaseline([{ stars: 100, captured_at: iso(1) }, { stars: 200, captured_at: iso(0) }]);
+    const b = windowBaseline([
+      { stars: 100, captured_at: iso(1) },
+      { stars: 200, captured_at: iso(0) },
+    ]);
     assert.equal(b.snap.stars, 100);
     assert.ok(b.days >= 1 && b.days < 1.05, `天数应约 1，实际 ${b.days}`);
   });
 
   test("没有窗口内基准时退回相邻快照，天数下限为 1（不得放大日均）", () => {
-    const b = windowBaseline([{ stars: 100, captured_at: iso(0.2) }, { stars: 200, captured_at: iso(0) }]);
+    const b = windowBaseline([
+      { stars: 100, captured_at: iso(0.2) },
+      { stars: 200, captured_at: iso(0) },
+    ]);
     assert.equal(b.snap.stars, 100);
     assert.equal(b.days, 1);
   });
@@ -735,7 +1053,17 @@ describe("windowBaseline：窗口基准及其真实跨度", () => {
 describe("通知渠道编码（B1）", () => {
   test("WEBHOOK_TYPES 含各渠道", async () => {
     const { WEBHOOK_TYPES } = await import("../src/notify.js");
-    for (const t of ["generic", "slack", "discord", "telegram", "feishu", "dingtalk", "ntfy", "bark", "serverchan"]) {
+    for (const t of [
+      "generic",
+      "slack",
+      "discord",
+      "telegram",
+      "feishu",
+      "dingtalk",
+      "ntfy",
+      "bark",
+      "serverchan",
+    ]) {
       assert.ok(WEBHOOK_TYPES.includes(t), `应包含 ${t}`);
     }
   });
@@ -769,14 +1097,27 @@ describe("通知渠道编码（B1）", () => {
 
 describe("JSON 导出 / 导入（D1）", () => {
   test("导出→清空→导入 可完整往返，且重复导入不产生重复快照", () => {
-    db.exec("DELETE FROM alerts; DELETE FROM favorites; DELETE FROM snapshots; DELETE FROM custom_repos; DELETE FROM repos;");
-    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,forks,open_issues,is_custom) VALUES (?,?,?,?,?,?,?,1)")
-      .run("io/round-trip", "round-trip", "io", "u", 777, 7, 1);
+    db.exec(
+      "DELETE FROM alerts; DELETE FROM favorites; DELETE FROM snapshots; DELETE FROM custom_repos; DELETE FROM repos;",
+    );
+    db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,stars,forks,open_issues,is_custom) VALUES (?,?,?,?,?,?,?,1)",
+    ).run("io/round-trip", "round-trip", "io", "u", 777, 7, 1);
     const rid = db.prepare("SELECT id FROM repos WHERE full_name = ?").get("io/round-trip").id;
-    db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)")
-      .run(rid, 700, 7, 1, "2026-01-01T00:00:00Z");
-    db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)")
-      .run(rid, 777, 7, 1, "2026-01-02T00:00:00Z");
+    db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)").run(
+      rid,
+      700,
+      7,
+      1,
+      "2026-01-01T00:00:00Z",
+    );
+    db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)").run(
+      rid,
+      777,
+      7,
+      1,
+      "2026-01-02T00:00:00Z",
+    );
     addCustomRepo("io/round-trip");
     toggleFavorite(rid);
 
@@ -784,7 +1125,9 @@ describe("JSON 导出 / 导入（D1）", () => {
     assert.equal(snapshot.snapshots.length, 2);
 
     // 清空后 merge 导入
-    db.exec("DELETE FROM alerts; DELETE FROM favorites; DELETE FROM snapshots; DELETE FROM custom_repos; DELETE FROM repos;");
+    db.exec(
+      "DELETE FROM alerts; DELETE FROM favorites; DELETE FROM snapshots; DELETE FROM custom_repos; DELETE FROM repos;",
+    );
     const r = importData(snapshot, { mode: "merge" });
     assert.equal(r.counts.repos, 1);
     assert.equal(r.counts.snapshots, 2);
@@ -807,7 +1150,9 @@ describe("历史回填 backfill（A1）", () => {
   test("resolveBackfillScope 返回若干仓库 id", async () => {
     const { resolveBackfillScope } = await import("../src/backfill.js");
     db.exec("DELETE FROM snapshots; DELETE FROM favorites; DELETE FROM custom_repos; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)",
+    );
     ins.run("s/a", "a", "s", "u", 100);
     ins.run("s/b", "b", "s", "u", 200);
     addCustomRepo("s/a");
@@ -819,20 +1164,22 @@ describe("历史回填 backfill（A1）", () => {
   test("backfillRepo 从 stargazers 重建按天快照", async () => {
     const { backfillRepo } = await import("../src/backfill.js");
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,forks,open_issues,is_custom) VALUES (?,?,?,?,?,?,?,0)")
-      .run("bf/target", "target", "bf", "u", 5, 1, 0);
+    db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,stars,forks,open_issues,is_custom) VALUES (?,?,?,?,?,?,?,0)",
+    ).run("bf/target", "target", "bf", "u", 5, 1, 0);
     const rid = db.prepare("SELECT id FROM repos WHERE full_name = ?").get("bf/target").id;
 
     const realFetch = globalThis.fetch;
     const now = Date.now();
     globalThis.fetch = async (url) => {
       const page = Number(new URL(url).searchParams.get("page"));
-      const items = page === 1
-        ? [
-            { starred_at: new Date(now - 2.5 * 86400000).toISOString(), user: { login: "u1" } },
-            { starred_at: new Date(now - 3.5 * 86400000).toISOString(), user: { login: "u2" } },
-          ]
-        : [];
+      const items =
+        page === 1
+          ? [
+              { starred_at: new Date(now - 2.5 * 86400000).toISOString(), user: { login: "u1" } },
+              { starred_at: new Date(now - 3.5 * 86400000).toISOString(), user: { login: "u2" } },
+            ]
+          : [];
       return new Response(JSON.stringify(items), {
         status: 200,
         headers: { "content-type": "application/json", etag: `"bf-p${page}"` },
@@ -843,7 +1190,9 @@ describe("历史回填 backfill（A1）", () => {
       const r = await backfillRepo({ id: rid, token: undefined, days: 30, maxPages: 3 });
       assert.ok(!r.error, JSON.stringify(r));
       assert.equal(r.inserted, 2, "应写入 2 个按天历史点");
-      const snaps = db.prepare("SELECT stars, captured_at FROM snapshots WHERE repo_id = ? ORDER BY captured_at ASC").all(rid);
+      const snaps = db
+        .prepare("SELECT stars, captured_at FROM snapshots WHERE repo_id = ? ORDER BY captured_at ASC")
+        .all(rid);
       assert.equal(snaps.length, 2);
       assert.equal(snaps[0].stars, 4); // 当前 5 星，第 2 个 stargazer → 4
       assert.ok(snaps[0].captured_at.endsWith("T23:59:59Z"));
@@ -867,12 +1216,16 @@ describe("历史回填 backfill（A1）", () => {
 describe("分析视图（C 组）", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name,name,owner,url,description,language,stars,is_custom) VALUES (?,?,?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,description,language,stars,is_custom) VALUES (?,?,?,?,?,?,?,0)",
+    );
     ins.run("cmp/a", "a", "cmp", "u", "A fast web framework in rust", "Rust", 5000);
     ins.run("cmp/b", "b", "cmp", "u", "Another fast web framework in rust", "Rust", 3000);
     ins.run("cmp/c", "c", "cmp", "u", "A python data library", "Python", 2000);
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,?,?,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,?,?,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     snap.run(idOf("cmp/a"), 4000, 0, 0, iso(3));
     snap.run(idOf("cmp/a"), 5000, 0, 0, iso(0));
@@ -882,7 +1235,10 @@ describe("分析视图（C 组）", () => {
   });
 
   test("compareRepos 返回序列与百分比变化", () => {
-    const ids = db.prepare("SELECT id FROM repos ORDER BY full_name").all().map((r) => r.id);
+    const ids = db
+      .prepare("SELECT id FROM repos ORDER BY full_name")
+      .all()
+      .map((r) => r.id);
     const r = compareRepos({ ids, window: "day", metric: "stars" });
     assert.equal(r.repos.length, 3);
     assert.ok(r.dates.length >= 2);
@@ -951,10 +1307,19 @@ describe("GitHub 仓库路径构造（回归：%2F → 404）", () => {
       if (String(url).includes("/stargazers")) {
         return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
       }
-      return new Response(JSON.stringify({
-        full_name: "owner/repo", name: "repo", owner: { login: "owner" }, html_url: "u",
-        stargazers_count: 1, forks_count: 0, open_issues_count: 0, created_at: "2020-01-01T00:00:00Z",
-      }), { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          full_name: "owner/repo",
+          name: "repo",
+          owner: { login: "owner" },
+          html_url: "u",
+          stargazers_count: 1,
+          forks_count: 0,
+          open_issues_count: 0,
+          created_at: "2020-01-01T00:00:00Z",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
     };
     try {
       await fetchCustomRepo("owner/repo");
@@ -963,7 +1328,10 @@ describe("GitHub 仓库路径构造（回归：%2F → 404）", () => {
       globalThis.fetch = real;
     }
     assert.ok(seen.length >= 2, seen.join("\n"));
-    assert.ok(seen.every((u) => !u.includes("%2F")), "URL 不应包含 %2F:\n" + seen.join("\n"));
+    assert.ok(
+      seen.every((u) => !u.includes("%2F")),
+      "URL 不应包含 %2F:\n" + seen.join("\n"),
+    );
     assert.ok(seen.some((u) => u.includes("/repos/owner/repo/stargazers")));
     assert.ok(seen.some((u) => u.endsWith("/repos/owner/repo")));
   });
@@ -972,25 +1340,46 @@ describe("GitHub 仓库路径构造（回归：%2F → 404）", () => {
 describe("信号层：异常检测 / 黑马榜 / 迷你走势图", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name,name,owner,url,description,language,stars,gh_created_at,is_custom) VALUES (?,?,?,?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,description,language,stars,gh_created_at,is_custom) VALUES (?,?,?,?,?,?,?,?,0)",
+    );
     const old = new Date(Date.now() - 400 * 86400000).toISOString();
     ins.run("sig/spike", "spike", "sig", "u", "", "Go", 1000, old);
     ins.run("sig/steady", "steady", "sig", "u", "", "Rust", 5000, old);
-    ins.run("sig/young", "young", "sig", "u", "", "Zig", 500, new Date(Date.now() - 20 * 86400000).toISOString());
+    ins.run(
+      "sig/young",
+      "young",
+      "sig",
+      "u",
+      "",
+      "Zig",
+      500,
+      new Date(Date.now() - 20 * 86400000).toISOString(),
+    );
 
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
 
     // sig/spike：稳定 +10/天 后突然 +300
     let v = 0;
-    [10, 12, 8, 11, 9, 10, 300].forEach((d, i) => { v += d; snap.run(idOf("sig/spike"), v, iso(6 - i)); });
+    [10, 12, 8, 11, 9, 10, 300].forEach((d, i) => {
+      v += d;
+      snap.run(idOf("sig/spike"), v, iso(6 - i));
+    });
     // sig/steady：一直 +50/天
     v = 0;
-    [50, 50, 50, 50, 50, 50, 50].forEach((d, i) => { v += d; snap.run(idOf("sig/steady"), v, iso(6 - i)); });
+    [50, 50, 50, 50, 50, 50, 50].forEach((d, i) => {
+      v += d;
+      snap.run(idOf("sig/steady"), v, iso(6 - i));
+    });
     // sig/young：+30/天（低星高百分比）
     v = 300;
-    [30, 30, 30, 30, 30, 30, 30].forEach((d, i) => { snap.run(idOf("sig/young"), v + i * 30, iso(6 - i)); });
+    [30, 30, 30, 30, 30, 30, 30].forEach((d, i) => {
+      snap.run(idOf("sig/young"), v + i * 30, iso(6 - i));
+    });
   });
 
   test("getAnomalies 抓到突增且给出样本量", () => {
@@ -1001,7 +1390,11 @@ describe("信号层：异常检测 / 黑马榜 / 迷你走势图", () => {
     assert.equal(hit.direction, "spike");
     assert.ok(hit.samples >= 5);
     assert.ok(hit.sd > 0);
-    assert.equal(r.spikes.find((x) => x.full_name === "sig/steady"), undefined, "稳定项目不应误报");
+    assert.equal(
+      r.spikes.find((x) => x.full_name === "sig/steady"),
+      undefined,
+      "稳定项目不应误报",
+    );
   });
 
   test("getAnomalies 高阈值下无结果", () => {
@@ -1012,11 +1405,22 @@ describe("信号层：异常检测 / 黑马榜 / 迷你走势图", () => {
 
   test("getAnomalies 样本不足时不误报", () => {
     // 只有极少快照的仓库不应出现
-    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)").run("sig/new", "new", "sig", "u", 10);
+    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)").run(
+      "sig/new",
+      "new",
+      "sig",
+      "u",
+      10,
+    );
     const id = db.prepare("SELECT id FROM repos WHERE full_name='sig/new'").get().id;
-    db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)").run(id, 10, new Date().toISOString());
+    db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)",
+    ).run(id, 10, new Date().toISOString());
     const r = getAnomalies({ days: 30, z: 1, minSamples: 5 });
-    assert.equal(r.spikes.find((x) => x.full_name === "sig/new"), undefined);
+    assert.equal(
+      r.spikes.find((x) => x.full_name === "sig/new"),
+      undefined,
+    );
   });
 
   test("getRisingStars 按日增百分比排序并受 maxStars 限制", () => {
@@ -1047,7 +1451,10 @@ describe("信号层：异常检测 / 黑马榜 / 迷你走势图", () => {
   test("predictGrowth 返回 R²", () => {
     const snaps = [];
     for (let i = 0; i < 5; i++) {
-      snaps.push({ stars: 1000 + i * 100, captured_at: new Date(Date.now() - (4 - i) * 86400000).toISOString() });
+      snaps.push({
+        stars: 1000 + i * 100,
+        captured_at: new Date(Date.now() - (4 - i) * 86400000).toISOString(),
+      });
     }
     const p = predictGrowth(snaps);
     assert.ok(p);
@@ -1058,15 +1465,19 @@ describe("信号层：异常检测 / 黑马榜 / 迷你走势图", () => {
   test("compareRepos 给出交叉预测", () => {
     // spike: 1000→? 递增；steady: 5000 平坦 —— spike 终将超过 steady
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-    const ins = db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)",
+    );
     ins.run("x/low", "low", "x", "u", 1000);
     ins.run("y/high", "high", "y", "u", 5000);
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     [0, 1, 2, 3].forEach((i) => {
-      snap.run(idOf("x/low"), 1000 + i * 500, iso(3 - i));   // +500/天
-      snap.run(idOf("y/high"), 5000, iso(3 - i));            // 持平
+      snap.run(idOf("x/low"), 1000 + i * 500, iso(3 - i)); // +500/天
+      snap.run(idOf("y/high"), 5000, iso(3 - i)); // 持平
     });
     const r = compareRepos({ ids: [idOf("x/low"), idOf("y/high")], window: "day" });
     assert.ok(r.crossings.length >= 1, "应给出交叉预测");
@@ -1103,29 +1514,58 @@ describe("事件聚类与告警回测（第二批）", () => {
   before(() => {
     db.exec("DELETE FROM snapshots; DELETE FROM repos;");
     db.exec("DELETE FROM settings WHERE key = 'repoThresholds'");
-    const ins = db.prepare("INSERT INTO repos (full_name,name,owner,url,description,language,stars,is_custom) VALUES (?,?,?,?,?,?,?,0)");
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,description,language,stars,is_custom) VALUES (?,?,?,?,?,?,?,0)",
+    );
     for (const [n, d] of [
       ["ev/one", "machine learning agent framework one"],
       ["ev/two", "machine learning agent framework two"],
       ["ev/three", "machine learning agent framework three"],
-    ]) ins.run(n, n.split("/")[1], "ev", "u", d, "Python", 1250);
+    ])
+      ins.run(n, n.split("/")[1], "ev", "u", d, "Python", 1250);
     ins.run("ev/steady", "steady", "ev", "u", "unrelated database tool", "Go", 1060);
     ins.run("ev/milestone", "milestone", "ev", "u", "crossing milestone repo", "Rust", 10100);
     ins.run("ev/down", "down", "ev", "u", "a declining project", "C", 1000);
 
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     const base = [8, 12, 9, 11, 10];
 
     for (const n of ["ev/one", "ev/two", "ev/three"]) {
       let v = 1000;
-      base.forEach((d, i) => { v += d; snap.run(idOf(n), v, iso(6 - i)); });
-      snap.run(idOf(n), v + 200, iso(0));                       // 同日突增
+      base.forEach((d, i) => {
+        v += d;
+        snap.run(idOf(n), v, iso(6 - i));
+      });
+      snap.run(idOf(n), v + 200, iso(0)); // 同日突增
     }
-    { let v = 1000; base.forEach((d, i) => { v += d; snap.run(idOf("ev/steady"), v, iso(6 - i)); }); snap.run(idOf("ev/steady"), v + 10, iso(0)); }
-    { let v = 9750; base.forEach((d, i) => { v += d * 3; snap.run(idOf("ev/milestone"), v, iso(6 - i)); }); snap.run(idOf("ev/milestone"), 10100, iso(0)); }
-    { let v = 1000; base.forEach((d, i) => { v += d; snap.run(idOf("ev/down"), v, iso(6 - i)); }); snap.run(idOf("ev/down"), v - 50, iso(0)); }
+    {
+      let v = 1000;
+      base.forEach((d, i) => {
+        v += d;
+        snap.run(idOf("ev/steady"), v, iso(6 - i));
+      });
+      snap.run(idOf("ev/steady"), v + 10, iso(0));
+    }
+    {
+      let v = 9750;
+      base.forEach((d, i) => {
+        v += d * 3;
+        snap.run(idOf("ev/milestone"), v, iso(6 - i));
+      });
+      snap.run(idOf("ev/milestone"), 10100, iso(0));
+    }
+    {
+      let v = 1000;
+      base.forEach((d, i) => {
+        v += d;
+        snap.run(idOf("ev/down"), v, iso(6 - i));
+      });
+      snap.run(idOf("ev/down"), v - 50, iso(0));
+    }
   });
 
   test("getEvents 把同日多个异常归为一个事件并自动命名", () => {
@@ -1135,7 +1575,10 @@ describe("事件聚类与告警回测（第二批）", () => {
     assert.equal(e.count >= 3, true);
     assert.ok(e.totalDelta > 0);
     assert.equal(e.dominantLanguage, "Python");
-    assert.ok(e.terms.includes("machine") || e.terms.includes("learning") || e.terms.includes("agent"), `共同词应在 ${JSON.stringify(e.terms)} 中`);
+    assert.ok(
+      e.terms.includes("machine") || e.terms.includes("learning") || e.terms.includes("agent"),
+      `共同词应在 ${JSON.stringify(e.terms)} 中`,
+    );
     const names = e.repos.map((x) => x.full_name);
     assert.ok(names.includes("ev/one") && names.includes("ev/two") && names.includes("ev/three"));
   });
@@ -1158,7 +1601,13 @@ describe("事件聚类与告警回测（第二批）", () => {
     assert.equal(ms.summary.byKind.milestone, 1);
     assert.equal(ms.fired.find((f) => f.kind === "milestone").full_name, "ev/milestone");
 
-    const dp = backtestAlerts({ days: 30, threshold: 100000, alertOnDrop: true, dropThreshold: 20, alertOnMilestone: false });
+    const dp = backtestAlerts({
+      days: 30,
+      threshold: 100000,
+      alertOnDrop: true,
+      dropThreshold: 20,
+      alertOnMilestone: false,
+    });
     assert.ok(dp.summary.byKind.drop >= 1);
     assert.ok(dp.fired.some((f) => f.kind === "drop" && f.full_name === "ev/down"));
   });
@@ -1166,22 +1615,31 @@ describe("事件聚类与告警回测（第二批）", () => {
   test("backtestAlerts 支持每仓库阈值覆盖", () => {
     setSetting("repoThresholds", JSON.stringify({ "ev/steady": 5 }));
     const r = backtestAlerts({ days: 30, threshold: 100000, alertOnDrop: false, alertOnMilestone: false });
-    assert.ok(r.fired.some((f) => f.full_name === "ev/steady"), "覆盖阈值后 ev/steady 应触发");
+    assert.ok(
+      r.fired.some((f) => f.full_name === "ev/steady"),
+      "覆盖阈值后 ev/steady 应触发",
+    );
     db.exec("DELETE FROM settings WHERE key = 'repoThresholds'");
   });
 });
 
 describe("泛化追踪对象：指数与生态（第三批）", () => {
   before(() => {
-    db.exec("DELETE FROM snapshots; DELETE FROM repos; DELETE FROM query_members; DELETE FROM tracked_queries; DELETE FROM indices;");
-    const ins = db.prepare("INSERT INTO repos (full_name,name,owner,url,description,language,stars,is_custom) VALUES (?,?,?,?,?,?,?,0)");
+    db.exec(
+      "DELETE FROM snapshots; DELETE FROM repos; DELETE FROM query_members; DELETE FROM tracked_queries; DELETE FROM indices;",
+    );
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,description,language,stars,is_custom) VALUES (?,?,?,?,?,?,?,0)",
+    );
     ins.run("ix/a", "a", "ix", "u", "rust web framework", "Rust", 3000);
     ins.run("ix/b", "b", "ix", "u", "rust cli tool", "Rust", 2000);
     ins.run("ix/c", "c", "ix", "u", "python data lib", "Python", 1000);
     ins.run("ix/small", "small", "ix", "u", "rust tiny", "Rust", 50);
 
     const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,0,0,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     // a: +100/天；b: +50/天；c: +10/天
     [3000 - 300, 3000 - 200, 3000 - 100, 3000].forEach((v, i) => snap.run(idOf("ix/a"), v, iso(3 - i)));
@@ -1195,9 +1653,15 @@ describe("泛化追踪对象：指数与生态（第三批）", () => {
     const all = resolveIndexMembers({ minStars: 1000 });
     assert.equal(all.length, 3);
     const kw = resolveIndexMembers({ keyword: "framework" });
-    assert.deepEqual(kw.map((r) => r.full_name), ["ix/a"]);
+    assert.deepEqual(
+      kw.map((r) => r.full_name),
+      ["ix/a"],
+    );
     const capped = resolveIndexMembers({ maxStars: 100 });
-    assert.deepEqual(capped.map((r) => r.full_name), ["ix/small"]);
+    assert.deepEqual(
+      capped.map((r) => r.full_name),
+      ["ix/small"],
+    );
   });
 
   test("指数 CRUD 与曲线", () => {
@@ -1209,10 +1673,10 @@ describe("泛化追踪对象：指数与生态（第三批）", () => {
     const s = getIndexSeries(r.id, { days: 30, weight: "equal" });
     assert.equal(s.memberCount, 2);
     assert.equal(s.dates.length, 4);
-    assert.equal(s.index[0], 100);                     // 等权归一化起点
+    assert.equal(s.index[0], 100); // 等权归一化起点
     assert.ok(s.index[s.index.length - 1] > 100);
     assert.ok(s.changePct > 0);
-    assert.equal(s.members[0].full_name, "ix/a");      // 按当前星数排序
+    assert.equal(s.members[0].full_name, "ix/a"); // 按当前星数排序
     assert.ok(s.members[0].sharePct > s.members[1].sharePct);
 
     const cap = getIndexSeries(r.id, { days: 30, weight: "cap" });
@@ -1273,12 +1737,39 @@ describe("泛化追踪对象：指数与生态（第三批）", () => {
     const real = globalThis.fetch;
     globalThis.fetch = async (url) => {
       if (String(url).includes("/search/repositories")) {
-        return new Response(JSON.stringify({
-          items: [
-            { full_name: "q/one", name: "one", owner: { login: "q" }, html_url: "u", description: "d", language: "Stub", homepage: null, stargazers_count: 12000, forks_count: 1, open_issues_count: 0, created_at: "2020-01-01T00:00:00Z" },
-            { full_name: "q/two", name: "two", owner: { login: "q" }, html_url: "u", description: "d", language: "Stub", homepage: null, stargazers_count: 8000, forks_count: 1, open_issues_count: 0, created_at: "2020-01-01T00:00:00Z" },
-          ],
-        }), { status: 200, headers: { "content-type": "application/json" } });
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                full_name: "q/one",
+                name: "one",
+                owner: { login: "q" },
+                html_url: "u",
+                description: "d",
+                language: "Stub",
+                homepage: null,
+                stargazers_count: 12000,
+                forks_count: 1,
+                open_issues_count: 0,
+                created_at: "2020-01-01T00:00:00Z",
+              },
+              {
+                full_name: "q/two",
+                name: "two",
+                owner: { login: "q" },
+                html_url: "u",
+                description: "d",
+                language: "Stub",
+                homepage: null,
+                stargazers_count: 8000,
+                forks_count: 1,
+                open_issues_count: 0,
+                created_at: "2020-01-01T00:00:00Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
       }
       return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
     };
@@ -1298,11 +1789,19 @@ describe("泛化追踪对象：指数与生态（第三批）", () => {
 describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）", () => {
   describe("重命名与删除检测", () => {
     before(() => {
-      db.exec("DELETE FROM snapshots; DELETE FROM favorites; DELETE FROM alerts; DELETE FROM query_members; DELETE FROM custom_repos; DELETE FROM repos;");
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,forks,open_issues,is_custom) VALUES ('old/name','name','old','u',100,1,0,1)").run();
+      db.exec(
+        "DELETE FROM snapshots; DELETE FROM favorites; DELETE FROM alerts; DELETE FROM query_members; DELETE FROM custom_repos; DELETE FROM repos;",
+      );
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,forks,open_issues,is_custom) VALUES ('old/name','name','old','u',100,1,0,1)",
+      ).run();
       const id = db.prepare("SELECT id FROM repos WHERE full_name='old/name'").get().id;
-      db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)").run(id, 90, 1, 0, new Date(Date.now() - 2 * 86400000).toISOString());
-      db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)").run(id, 100, 1, 0, new Date().toISOString());
+      db.prepare(
+        "INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)",
+      ).run(id, 90, 1, 0, new Date(Date.now() - 2 * 86400000).toISOString());
+      db.prepare(
+        "INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,?,?,?)",
+      ).run(id, 100, 1, 0, new Date().toISOString());
       addCustomRepo("old/name");
       toggleFavorite(id);
     });
@@ -1321,11 +1820,17 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
     });
 
     test("新旧记录并存时合并快照", () => {
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('dup/old','old','dup','u',10,0)").run();
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('dup/new','new','dup','u',20,0)").run();
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('dup/old','old','dup','u',10,0)",
+      ).run();
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('dup/new','new','dup','u',20,0)",
+      ).run();
       const o = db.prepare("SELECT id FROM repos WHERE full_name='dup/old'").get().id;
       const n = db.prepare("SELECT id FROM repos WHERE full_name='dup/new'").get().id;
-      db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)").run(o, 10, new Date().toISOString());
+      db.prepare(
+        "INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)",
+      ).run(o, 10, new Date().toISOString());
 
       const r = renameRepo("dup/old", "dup/new");
       assert.equal(r.merged, true);
@@ -1348,8 +1853,12 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
 
     test("refreshCustomRepos 区分 404 与改名（stub 网络）", async () => {
       db.exec("DELETE FROM snapshots; DELETE FROM custom_repos; DELETE FROM repos;");
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('old/name','name','old','u',100,1)").run();
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('gone/one','one','gone','u',50,1)").run();
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('old/name','name','old','u',100,1)",
+      ).run();
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('gone/one','one','gone','u',50,1)",
+      ).run();
       addCustomRepo("old/name");
       addCustomRepo("gone/one");
 
@@ -1357,15 +1866,29 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
       globalThis.fetch = async (url) => {
         const u = String(url);
         if (u.includes("/repos/gone/one")) {
-          return new Response(JSON.stringify({ message: "Not Found" }), { status: 404, headers: { "content-type": "application/json" } });
+          return new Response(JSON.stringify({ message: "Not Found" }), {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          });
         }
         if (u.includes("/repos/old/name")) {
           // 模拟 GitHub 改名后的 301 跟随结果：full_name 已变
-          return new Response(JSON.stringify({
-            full_name: "new/name", name: "name", owner: { login: "new" }, html_url: "u",
-            description: "d", language: "Go", homepage: null,
-            stargazers_count: 150, forks_count: 1, open_issues_count: 0, created_at: "2020-01-01T00:00:00Z",
-          }), { status: 200, headers: { "content-type": "application/json" } });
+          return new Response(
+            JSON.stringify({
+              full_name: "new/name",
+              name: "name",
+              owner: { login: "new" },
+              html_url: "u",
+              description: "d",
+              language: "Go",
+              homepage: null,
+              stargazers_count: 150,
+              forks_count: 1,
+              open_issues_count: 0,
+              created_at: "2020-01-01T00:00:00Z",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
         }
         return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
       };
@@ -1387,12 +1910,18 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
   describe("快照 rollup", () => {
     test("老快照按周压缩，近期逐日保留", () => {
       db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('roll/one','one','roll','u',100,0)").run();
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('roll/one','one','roll','u',100,0)",
+      ).run();
       const id = db.prepare("SELECT id FROM repos WHERE full_name='roll/one'").get().id;
-      const ins = db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)");
+      const ins = db.prepare(
+        "INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)",
+      );
       const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
       // 60 天前同一天内的 3 条旧快照（保证同一 ISO 周）
-      [100, 101, 102].forEach((v, i) => ins.run(id, v, new Date(Date.now() - 60 * 86400000 + i * 3600000).toISOString()));
+      [100, 101, 102].forEach((v, i) =>
+        ins.run(id, v, new Date(Date.now() - 60 * 86400000 + i * 3600000).toISOString()),
+      );
       // 最近 3 天 —— 应全部保留
       [103, 104, 105].forEach((v, i) => ins.run(id, v, iso(2 - i)));
 
@@ -1401,14 +1930,22 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
       assert.equal(r.removed, 2);
       assert.equal(db.prepare("SELECT COUNT(*) c FROM snapshots WHERE repo_id=?").get(id).c, 4);
       // 保留的是该周最新的一条
-      assert.equal(db.prepare("SELECT stars FROM snapshots WHERE repo_id=? ORDER BY captured_at ASC LIMIT 1").get(id).stars, 102);
+      assert.equal(
+        db.prepare("SELECT stars FROM snapshots WHERE repo_id=? ORDER BY captured_at ASC LIMIT 1").get(id)
+          .stars,
+        102,
+      );
     });
 
     test("无旧快照时不误删", () => {
       db.exec("DELETE FROM snapshots; DELETE FROM repos;");
-      db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('roll/two','two','roll','u',1,0)").run();
+      db.prepare(
+        "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('roll/two','two','roll','u',1,0)",
+      ).run();
       const id = db.prepare("SELECT id FROM repos WHERE full_name='roll/two'").get().id;
-      db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)").run(id, 1, new Date().toISOString());
+      db.prepare(
+        "INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)",
+      ).run(id, 1, new Date().toISOString());
       const r = rollupOldSnapshots(30);
       assert.equal(r.removed, 0);
       assert.equal(db.prepare("SELECT COUNT(*) c FROM snapshots").get().c, 1);
@@ -1427,7 +1964,10 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
       const real = globalThis.fetch;
       globalThis.fetch = async () => {
         calls++;
-        return new Response(JSON.stringify({ downloads: 123 }), { status: 200, headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify({ downloads: 123 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
       };
       try {
         // 刚写入 updated_at=now → 默认 24h 内应跳过
@@ -1457,14 +1997,18 @@ describe("运维健壮性：仓库健康 / rollup / 刷新频率（第四批）"
 describe("UX：时间线事件（第五批）", () => {
   test("getRepoHistory 返回里程碑与告警事件", () => {
     db.exec("DELETE FROM snapshots; DELETE FROM alerts; DELETE FROM repos;");
-    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('tl/one','one','tl','u',1600,0)").run();
+    db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('tl/one','one','tl','u',1600,0)",
+    ).run();
     const id = db.prepare("SELECT id FROM repos WHERE full_name='tl/one'").get().id;
-    const snap = db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)");
+    const snap = db.prepare(
+      "INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)",
+    );
     const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
     snap.run(id, 900, iso(3));
-    snap.run(id, 1600, iso(2));   // 跨过 1000
+    snap.run(id, 1600, iso(2)); // 跨过 1000
     snap.run(id, 2200, iso(1));
-    snap.run(id, 5200, iso(0));   // 跨过 5000
+    snap.run(id, 5200, iso(0)); // 跨过 5000
 
     insertAlert(id, 50, 120, 1600, { kind: "growth" });
     insertAlert(id, 1000, 3000, 5200, { kind: "milestone", message: "突破 5,000 星" });
@@ -1472,7 +2016,10 @@ describe("UX：时间线事件（第五批）", () => {
     const h = getRepoHistory(id, "stars");
     assert.ok(Array.isArray(h.events));
     const milestones = h.events.filter((e) => e.type === "milestone");
-    assert.ok(milestones.some((m) => m.label.includes("1k")), JSON.stringify(h.events));
+    assert.ok(
+      milestones.some((m) => m.label.includes("1k")),
+      JSON.stringify(h.events),
+    );
     assert.ok(milestones.some((m) => m.message.includes("5,000")));
     const growth = h.events.filter((e) => e.type === "growth");
     assert.equal(growth.length, 1);
@@ -1483,9 +2030,15 @@ describe("UX：时间线事件（第五批）", () => {
 
   test("无事件时返回空数组", () => {
     db.exec("DELETE FROM snapshots; DELETE FROM alerts; DELETE FROM repos;");
-    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('tl/two','two','tl','u',10,0)").run();
+    db.prepare(
+      "INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES ('tl/two','two','tl','u',10,0)",
+    ).run();
     const id = db.prepare("SELECT id FROM repos WHERE full_name='tl/two'").get().id;
-    db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)").run(id, 10, new Date().toISOString());
+    db.prepare("INSERT INTO snapshots (repo_id,stars,forks,open_issues,captured_at) VALUES (?,?,0,0,?)").run(
+      id,
+      10,
+      new Date().toISOString(),
+    );
     assert.deepEqual(getRepoHistory(id, "stars").events, []);
   });
 });
@@ -1495,7 +2048,11 @@ describe("Web Push：VAPID 与 RFC 8291 加密（第六批）", () => {
     const ecdh = crypto.createECDH("prime256v1");
     ecdh.generateKeys();
     const auth = crypto.randomBytes(16);
-    return { ecdh, auth, sub: { p256dh: ecdh.getPublicKey().toString("base64url"), auth: auth.toString("base64url") } };
+    return {
+      ecdh,
+      auth,
+      sub: { p256dh: ecdh.getPublicKey().toString("base64url"), auth: auth.toString("base64url") },
+    };
   };
 
   const decrypt = (body, client) => {
@@ -1507,13 +2064,17 @@ describe("Web Push：VAPID 与 RFC 8291 加密（第六批）", () => {
     const shared = client.ecdh.computeSecret(serverPub);
     const authInfo = Buffer.concat([Buffer.from("WebPush: info\0"), client.ecdh.getPublicKey(), serverPub]);
     const ikm = Buffer.from(crypto.hkdfSync("sha256", shared, client.auth, authInfo, 32));
-    const cek = Buffer.from(crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: aes128gcm\0"), 16));
-    const nonce = Buffer.from(crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: nonce\0"), 12));
+    const cek = Buffer.from(
+      crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: aes128gcm\0"), 16),
+    );
+    const nonce = Buffer.from(
+      crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: nonce\0"), 12),
+    );
     const dec = crypto.createDecipheriv("aes-128-gcm", cek, nonce);
     dec.setAAD(header);
     dec.setAuthTag(ct.subarray(ct.length - 16));
     const pt = Buffer.concat([dec.update(ct.subarray(0, ct.length - 16)), dec.final()]);
-    return pt.subarray(0, pt.length - 1).toString();   // 去掉最后记录分隔符 0x02
+    return pt.subarray(0, pt.length - 1).toString(); // 去掉最后记录分隔符 0x02
   };
 
   test("加密结果可被客户端私钥解密（aes128gcm 往返）", async () => {
@@ -1529,10 +2090,10 @@ describe("Web Push：VAPID 与 RFC 8291 加密（第六批）", () => {
     const wp = await import("../src/webpush.js");
     const client = makeClient();
     const body = wp.encryptPayload(client.sub, Buffer.from("x"));
-    assert.equal(body[20], 65);                          // keyid 长度 = 未压缩点长度
-    assert.equal(body[21], 4);                            // 未压缩点前缀 0x04
+    assert.equal(body[20], 65); // keyid 长度 = 未压缩点长度
+    assert.equal(body[21], 4); // 未压缩点前缀 0x04
     const rs = body.readUInt32BE(16);
-    assert.ok(rs >= 18);                                  // 记录大小合法
+    assert.ok(rs >= 18); // 记录大小合法
   });
 
   test("VAPID JWT 可被公钥验证且 aud/sub 正确", async () => {
@@ -1547,9 +2108,19 @@ describe("Web Push：VAPID 与 RFC 8291 加密（第六批）", () => {
     const raw = Buffer.from(publicKey, "base64url");
     const pub = crypto.createPublicKey({
       format: "jwk",
-      key: { kty: "EC", crv: "P-256", x: raw.subarray(1, 33).toString("base64url"), y: raw.subarray(33, 65).toString("base64url") },
+      key: {
+        kty: "EC",
+        crv: "P-256",
+        x: raw.subarray(1, 33).toString("base64url"),
+        y: raw.subarray(33, 65).toString("base64url"),
+      },
     });
-    const ok = crypto.verify("sha256", Buffer.from(`${h}.${p}`), { key: pub, dsaEncoding: "ieee-p1363" }, Buffer.from(s, "base64url"));
+    const ok = crypto.verify(
+      "sha256",
+      Buffer.from(`${h}.${p}`),
+      { key: pub, dsaEncoding: "ieee-p1363" },
+      Buffer.from(s, "base64url"),
+    );
     assert.equal(ok, true);
     const payload = JSON.parse(Buffer.from(p, "base64url").toString());
     assert.equal(payload.aud, "https://fcm.googleapis.com");
@@ -1578,8 +2149,14 @@ describe("Web Push：VAPID 与 RFC 8291 加密（第六批）", () => {
     const wp = await import("../src/webpush.js");
     const dbm = await import("../src/db.js");
     db.exec("DELETE FROM push_subscriptions");
-    const c1 = makeClient(), c2 = makeClient();
-    wp.subscribePush({ endpoint: "https://push.example/1", p256dh: c1.sub.p256dh, auth: c1.sub.auth, userAgent: "test" });
+    const c1 = makeClient(),
+      c2 = makeClient();
+    wp.subscribePush({
+      endpoint: "https://push.example/1",
+      p256dh: c1.sub.p256dh,
+      auth: c1.sub.auth,
+      userAgent: "test",
+    });
     wp.subscribePush({ endpoint: "https://push.example/2", p256dh: c2.sub.p256dh, auth: c2.sub.auth });
     // 重复订阅应更新而非新增
     wp.subscribePush({ endpoint: "https://push.example/2", p256dh: c2.sub.p256dh, auth: c2.sub.auth });
@@ -1589,7 +2166,7 @@ describe("Web Push：VAPID 与 RFC 8291 加密（第六批）", () => {
     let bodySeen = null;
     globalThis.fetch = async (url, opts) => {
       bodySeen = opts.body;
-      if (String(url).endsWith("/2")) return new Response("", { status: 410 });   // 已失效
+      if (String(url).endsWith("/2")) return new Response("", { status: 410 }); // 已失效
       return new Response("", { status: 201 });
     };
     try {
@@ -1652,7 +2229,12 @@ describe("认证：口令哈希与会话（第七批）", () => {
     assert.equal(u.ok, true);
 
     const token = newSessionToken();
-    dbm.createSession({ token, userId: u.id, expiresAt: new Date(Date.now() + 3600_000).toISOString(), userAgent: "t" });
+    dbm.createSession({
+      token,
+      userId: u.id,
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      userAgent: "t",
+    });
     const s = dbm.getSession(token);
     assert.equal(s.user_id, u.id);
     assert.equal(s.username, "sess-user");
@@ -1688,13 +2270,25 @@ describe("JSON 导出覆盖全部表（第八批）", () => {
     db.exec("DELETE FROM push_subscriptions; DELETE FROM sessions; DELETE FROM users");
     db.exec("DELETE FROM snapshots; DELETE FROM repos");
 
-    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)").run("exp/one", "one", "exp", "u", 100);
+    db.prepare("INSERT INTO repos (full_name,name,owner,url,stars,is_custom) VALUES (?,?,?,?,?,0)").run(
+      "exp/one",
+      "one",
+      "exp",
+      "u",
+      100,
+    );
     dbm.addIndex("导出指数", { language: "Go" }, 1);
     const q = dbm.addTrackedQuery("导出生态", "language:go", 1);
     const rid = db.prepare("SELECT id FROM repos WHERE full_name='exp/one'").get().id;
     dbm.replaceQueryMembers(q.id, [rid], new Date().toISOString());
-    const ecdh = crypto.createECDH("prime256v1"); ecdh.generateKeys();
-    dbm.addPushSubscription({ endpoint: "https://push.example/exp", p256dh: ecdh.getPublicKey().toString("base64url"), auth: crypto.randomBytes(16).toString("base64url"), userId: 1 });
+    const ecdh = crypto.createECDH("prime256v1");
+    ecdh.generateKeys();
+    dbm.addPushSubscription({
+      endpoint: "https://push.example/exp",
+      p256dh: ecdh.getPublicKey().toString("base64url"),
+      auth: crypto.randomBytes(16).toString("base64url"),
+      userId: 1,
+    });
     dbm.createUser({ username: "expuser", passwordHash: "scrypt$aa$bb", role: "admin" });
 
     const snap = dbm.exportData();
@@ -1742,7 +2336,7 @@ describe("查询结果定序（SQLite / PostgreSQL 必须一致）", () => {
 
     // 故意按非字典序插入：导出必须按自然键而不是插入顺序
     const ins = db.prepare(
-      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)"
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
     );
     ins.run("zeta/one", "one", "zeta", "u", "Zeta", 1000);
     ins.run("alpha/two", "two", "alpha", "u", "Zeta", 1000);
@@ -1781,8 +2375,16 @@ describe("查询结果定序（SQLite / PostgreSQL 必须一致）", () => {
 
   test("listLanguages：计数相同时按语言名升序", () => {
     const rows = listLanguages().filter((r) => ["Alpha", "Mid", "Zeta"].includes(r.language));
-    assert.deepEqual(rows.map((r) => r.c), [2, 2, 2], "三个语言应计数相同（构造出并列）");
-    assert.deepEqual(rows.map((r) => r.language), ["Alpha", "Mid", "Zeta"], "并列应按语言名升序");
+    assert.deepEqual(
+      rows.map((r) => r.c),
+      [2, 2, 2],
+      "三个语言应计数相同（构造出并列）",
+    );
+    assert.deepEqual(
+      rows.map((r) => r.language),
+      ["Alpha", "Mid", "Zeta"],
+      "并列应按语言名升序",
+    );
   });
 
   test("getLeaderboard：并列名次按 id 升序（总星榜与增长榜）", () => {

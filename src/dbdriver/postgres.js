@@ -15,7 +15,12 @@ import { translate } from "./translate.js";
 const WORKER_URL = new URL("./postgres.worker.js", import.meta.url);
 const DEFAULT_TIMEOUT_MS = 60_000;
 
-export function createPostgresDriver({ databaseUrl = "", dataDir = "", ssl = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+export function createPostgresDriver({
+  databaseUrl = "",
+  dataDir = "",
+  ssl = null,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+} = {}) {
   const sab = new SharedArrayBuffer(4);
   const i32 = new Int32Array(sab);
   const { port1, port2 } = new MessageChannel();
@@ -27,11 +32,10 @@ export function createPostgresDriver({ databaseUrl = "", dataDir = "", ssl = nul
   worker.unref?.();
 
   let seq = 0;
-  let ready = false;
 
   function call(op, payload = {}) {
     const id = ++seq;
-    Atomics.store(i32, 0, 0);          // 先复位再发请求，避免丢唤醒
+    Atomics.store(i32, 0, 0); // 先复位再发请求，避免丢唤醒
     port1.postMessage({ id, op, ...payload });
 
     for (;;) {
@@ -42,12 +46,15 @@ export function createPostgresDriver({ databaseUrl = "", dataDir = "", ssl = nul
       let m;
       while ((m = receiveMessageOnPort(port1))) {
         const reply = m.message;
-        if (reply.id === -1) {              // 初始化完成信号
+        if (reply.id === -1) {
+          // 初始化完成信号
           if (!reply.ok) throw new Error(reply.error);
-          ready = true;
           continue;
         }
-        if (reply.id === id) { matched = reply; break; }
+        if (reply.id === id) {
+          matched = reply;
+          break;
+        }
       }
       if (matched) {
         if (!matched.ok) throw new Error(matched.error);
@@ -89,8 +96,16 @@ export function createPostgresDriver({ databaseUrl = "", dataDir = "", ssl = nul
     },
 
     close() {
-      try { call("close"); } catch { /* ignore */ }
-      try { worker.terminate(); } catch { /* ignore */ }
+      try {
+        call("close");
+      } catch {
+        /* ignore */
+      }
+      try {
+        worker.terminate();
+      } catch {
+        /* ignore */
+      }
     },
   };
 }

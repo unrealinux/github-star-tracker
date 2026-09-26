@@ -10,8 +10,12 @@
 import crypto from "node:crypto";
 import { getSetting, setSetting } from "./db.js";
 import {
-  listPushSubscriptions, addPushSubscription, removePushSubscriptionById,
-  removePushSubscriptionByEndpoint, markPushOk, markPushError,
+  listPushSubscriptions,
+  addPushSubscription,
+  removePushSubscriptionById,
+  removePushSubscriptionByEndpoint,
+  markPushOk,
+  markPushError,
 } from "./db.js";
 import { logger } from "./logger.js";
 
@@ -26,7 +30,7 @@ let cachedKeys = null;
 /** 生成一对 P-256 密钥；公钥为 base64url 的未压缩点（65 字节） */
 export function generateVapidKeys() {
   const { privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
-  const jwk = privateKey.export({ format: "jwk" });          // { kty, crv, x, y, d }
+  const jwk = privateKey.export({ format: "jwk" }); // { kty, crv, x, y, d }
   const raw = Buffer.concat([Buffer.from([4]), fromB64u(jwk.x), fromB64u(jwk.y)]);
   return { publicKey: b64u(raw), privateJwk: jwk };
 }
@@ -40,7 +44,9 @@ export function getVapidKeys() {
     try {
       cachedKeys = { publicKey: pub, privateJwk: JSON.parse(priv) };
       return cachedKeys;
-    } catch { /* 密钥损坏则重新生成 */ }
+    } catch {
+      /* 密钥损坏则重新生成 */
+    }
   }
   const keys = generateVapidKeys();
   setSetting("vapidPublicKey", keys.publicKey);
@@ -50,7 +56,10 @@ export function getVapidKeys() {
   return keys;
 }
 
-const vapidSubject = () => (process.env.VAPID_SUBJECT || getSetting("vapidSubject", "mailto:admin@example.com") || "mailto:admin@example.com");
+const vapidSubject = () =>
+  process.env.VAPID_SUBJECT ||
+  getSetting("vapidSubject", "mailto:admin@example.com") ||
+  "mailto:admin@example.com";
 
 /**
  * 生成 VAPID 授权头（JWT 受众为该 endpoint 的 origin）。
@@ -82,15 +91,19 @@ export function encryptPayload(subscription, payload) {
 
   const ecdh = crypto.createECDH("prime256v1");
   ecdh.generateKeys();
-  const serverPub = ecdh.getPublicKey();               // 65 字节
-  const sharedSecret = ecdh.computeSecret(clientPub);  // 32 字节
+  const serverPub = ecdh.getPublicKey(); // 65 字节
+  const sharedSecret = ecdh.computeSecret(clientPub); // 32 字节
 
   const authInfo = Buffer.concat([Buffer.from("WebPush: info\0"), clientPub, serverPub]);
   const ikm = Buffer.from(crypto.hkdfSync("sha256", sharedSecret, authSecret, authInfo, 32));
 
   const salt = crypto.randomBytes(16);
-  const cek = Buffer.from(crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: aes128gcm\0"), 16));
-  const nonce = Buffer.from(crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: nonce\0"), 12));
+  const cek = Buffer.from(
+    crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: aes128gcm\0"), 16),
+  );
+  const nonce = Buffer.from(
+    crypto.hkdfSync("sha256", ikm, salt, Buffer.from("Content-Encoding: nonce\0"), 12),
+  );
 
   const rs = Buffer.alloc(4);
   rs.writeUInt32BE(RECORD_SIZE, 0);
@@ -134,7 +147,9 @@ export async function sendPushToAll(message, userId = null) {
   const subs = listPushSubscriptions(userId);
   if (!subs.length) return { sent: 0, failed: 0, removed: 0, total: 0 };
 
-  let sent = 0, failed = 0, removed = 0;
+  let sent = 0,
+    failed = 0,
+    removed = 0;
   for (const s of subs) {
     try {
       const status = await sendPush(s, message);

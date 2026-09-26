@@ -21,11 +21,11 @@ function parseRateLimit(res) {
   const limit = Number(res.headers.get("x-ratelimit-limit"));
   if (!limit) return null;
   return {
-    resource:  res.headers.get("x-ratelimit-resource") || "core",
-    used:      Number(res.headers.get("x-ratelimit-used")) || 0,
+    resource: res.headers.get("x-ratelimit-resource") || "core",
+    used: Number(res.headers.get("x-ratelimit-used")) || 0,
     limit,
     remaining: Number(res.headers.get("x-ratelimit-remaining")) || 0,
-    reset:     res.headers.get("x-ratelimit-reset"),
+    reset: res.headers.get("x-ratelimit-reset"),
   };
 }
 
@@ -124,7 +124,9 @@ async function requestJson(url, { token, accept, allow404 = false } = {}) {
     if ((res.status === 429 || res.status >= 500) && attempt < RETRY_TIMES) {
       const retryAfter = res.headers.get("Retry-After");
       const delay = retryAfter ? Number(retryAfter) * 1000 : RETRY_DELAY_MS * Math.pow(2, attempt);
-      console.warn(`[github] ${res.status} on attempt ${attempt + 1}, retrying in ${Math.round(delay / 1000)}s...`);
+      console.warn(
+        `[github] ${res.status} on attempt ${attempt + 1}, retrying in ${Math.round(delay / 1000)}s...`,
+      );
       await sleep(delay);
       continue;
     }
@@ -132,8 +134,10 @@ async function requestJson(url, { token, accept, allow404 = false } = {}) {
     if (res.status === 401 && useToken) {
       // token 过期/被吊销：标记后立刻匿名重试，而不是把整条采集链路停摆
       tokenState = "invalid";
-      console.warn("[github] GitHub 拒绝了当前 token（401），已回退匿名模式；请更新 GITHUB_TOKEN 或 GH_TOKEN");
-      attempt--;   // 这次降级不消耗重试次数
+      console.warn(
+        "[github] GitHub 拒绝了当前 token（401），已回退匿名模式；请更新 GITHUB_TOKEN 或 GH_TOKEN",
+      );
+      attempt--; // 这次降级不消耗重试次数
       continue;
     }
 
@@ -192,7 +196,7 @@ export async function searchTopRepos({ minStars, token, maxPages = 3, perPage = 
 export async function fetchCustomRepo(fullName, token) {
   const url = `${BASE}/repos/${repoPath(fullName)}`;
   const { data } = await requestJson(url, { token, allow404: true });
-  if (!data) return null;              // 已删除 / 转私有 / 旧地址失效
+  if (!data) return null; // 已删除 / 转私有 / 旧地址失效
   return mapRepo(data);
 }
 
@@ -225,9 +229,10 @@ export async function fetchRepoDetails(fullName, token) {
   const details = {
     full_name: data.full_name,
     topics: Array.isArray(data.topics) ? data.topics.slice(0, 20) : [],
-    license: data.license && data.license.spdx_id && data.license.spdx_id !== "NOASSERTION"
-      ? data.license.spdx_id
-      : (data.license?.name || null),
+    license:
+      data.license && data.license.spdx_id && data.license.spdx_id !== "NOASSERTION"
+        ? data.license.spdx_id
+        : data.license?.name || null,
     subscribers_count: data.subscribers_count ?? null,
     network_count: data.network_count ?? null,
     archived: Boolean(data.archived),
@@ -251,11 +256,15 @@ export async function fetchRepoDetails(fullName, token) {
       url: rel.data.html_url,
       prerelease: Boolean(rel.data.prerelease),
     };
-  } catch { /* 404：该仓库没有 release */ }
+  } catch {
+    /* 404：该仓库没有 release */
+  }
 
   // 贡献者数：per_page=1 时 Link 头 last 页号即为总数
   try {
-    const res = await fetch(`${BASE}/repos/${enc}/contributors?per_page=1&anon=1`, { headers: headersFor(token) });
+    const res = await fetch(`${BASE}/repos/${enc}/contributors?per_page=1&anon=1`, {
+      headers: headersFor(token),
+    });
     if (res.ok) {
       const link = res.headers.get("link") || "";
       const m = link.match(/[?&]page=(\d+)>;\s*rel="last"/);
@@ -267,7 +276,9 @@ export async function fetchRepoDetails(fullName, token) {
     } else if (res.status === 404) {
       details.contributors = 0;
     }
-  } catch { /* 忽略 */ }
+  } catch {
+    /* 忽略 */
+  }
 
   return details;
 }

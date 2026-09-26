@@ -1,5 +1,8 @@
 import {
-  listTrackedMetrics, updateTrackedMetricValue, insertMetricSnapshot, getMetricSnapshots,
+  listTrackedMetrics,
+  updateTrackedMetricValue,
+  insertMetricSnapshot,
+  getMetricSnapshots,
 } from "./db.js";
 import { getSetting } from "./db.js";
 import { fetchSource } from "./sources.js";
@@ -14,17 +17,25 @@ import { windowOf, avgDailyGrowth } from "./windows.js";
 export async function refreshExternalMetrics({ force = false } = {}) {
   const metrics = listTrackedMetrics();
   let intervals = {};
-  try { intervals = JSON.parse(getSetting("sourceIntervals", "{}") || "{}"); } catch { intervals = {}; }
+  try {
+    intervals = JSON.parse(getSetting("sourceIntervals", "{}") || "{}");
+  } catch {
+    intervals = {};
+  }
   const defaultHours = Number(getSetting("externalIntervalHours", 24)) || 0;
   const now = Date.now();
   const nowIso = new Date().toISOString();
-  let ok = 0, skipped = 0;
+  let ok = 0,
+    skipped = 0;
 
   for (const m of metrics) {
     const hours = Number(intervals[m.source] ?? defaultHours) || 0;
     if (!force && hours > 0 && m.updated_at) {
       const age = now - Date.parse(m.updated_at);
-      if (age >= 0 && age < hours * 3600 * 1000) { skipped++; continue; }
+      if (age >= 0 && age < hours * 3600 * 1000) {
+        skipped++;
+        continue;
+      }
     }
     try {
       const r = await fetchSource(m.source, m.key);
@@ -49,7 +60,10 @@ function computeGrowth(currentValue, snaps, window) {
 
   let base = null;
   for (let i = snaps.length - 1; i >= 0; i--) {
-    if (Date.parse(snaps[i].captured_at) <= windowStart) { base = snaps[i].value; break; }
+    if (Date.parse(snaps[i].captured_at) <= windowStart) {
+      base = snaps[i].value;
+      break;
+    }
   }
   if (base !== null) return { growth: currentValue - base, label: cfg.label };
   if (snaps.length >= 2) return { growth: currentValue - snaps[snaps.length - 2].value, label: "本次更新" };
@@ -59,27 +73,29 @@ function computeGrowth(currentValue, snaps, window) {
 /** 列出外部指标（含增长） */
 export function listExternalMetrics(window = "day") {
   const metrics = listTrackedMetrics();
-  return metrics.map((m) => {
-    const snaps = getMetricSnapshots(m.id);
-    const { growth, label } = computeGrowth(m.current_value ?? 0, snaps, window);
-    const a = avgDailyGrowth(snaps, (s) => s.value);
-    return {
-      id: m.id,
-      source: m.source,
-      key: m.key,
-      label: m.label || m.key,
-      url: m.url,
-      unit: m.unit,
-      value: m.current_value,
-      growth,
-      growthLabel: label,
-      avgDailyGrowth: a ? Number(a.avg.toFixed(2)) : null,
-      avgSampleDays: a ? Number(a.days.toFixed(2)) : null,
-      snapshots: snaps.length,
-      updatedAt: m.updated_at,
-      spark: snaps.slice(-10).map((s) => ({ t: s.captured_at, stars: s.value })),
-    };
-  }).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  return metrics
+    .map((m) => {
+      const snaps = getMetricSnapshots(m.id);
+      const { growth, label } = computeGrowth(m.current_value ?? 0, snaps, window);
+      const a = avgDailyGrowth(snaps, (s) => s.value);
+      return {
+        id: m.id,
+        source: m.source,
+        key: m.key,
+        label: m.label || m.key,
+        url: m.url,
+        unit: m.unit,
+        value: m.current_value,
+        growth,
+        growthLabel: label,
+        avgDailyGrowth: a ? Number(a.avg.toFixed(2)) : null,
+        avgSampleDays: a ? Number(a.days.toFixed(2)) : null,
+        snapshots: snaps.length,
+        updatedAt: m.updated_at,
+        spark: snaps.slice(-10).map((s) => ({ t: s.captured_at, stars: s.value })),
+      };
+    })
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 }
 
 export function getExternalMetricHistory(id) {

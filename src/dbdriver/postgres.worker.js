@@ -71,7 +71,14 @@ async function runExec(sql) {
 const handlers = {
   query: ({ sql, params }) => runQuery(sql, params),
   exec: ({ sql }) => runExec(sql),
-  close: async () => { try { await backend?.close?.(); } catch { /* ignore */ } return {}; },
+  close: async () => {
+    try {
+      await backend?.close?.();
+    } catch {
+      /* ignore */
+    }
+    return {};
+  },
   ping: async () => ({ mode }),
 };
 
@@ -87,7 +94,11 @@ const describeError = (e) => {
   if (e instanceof Error) return e.message || e.stack || e.name || "未知错误";
   if (typeof e === "string") return e;
   if (e === undefined || e === null) return "未知错误（原始异常为空）";
-  try { return JSON.stringify(e) ?? String(e); } catch { return String(e); }
+  try {
+    return JSON.stringify(e) ?? String(e);
+  } catch {
+    return String(e);
+  }
 };
 
 const reply = (id, ok, result, error) => {
@@ -100,7 +111,7 @@ let queue = Promise.resolve();
 port.on("message", (msg) => {
   queue = queue
     .then(() => readyPromise)
-    .then(() => handlers[msg.op] ? handlers[msg.op](msg) : Promise.reject(new Error(`未知操作: ${msg.op}`)))
+    .then(() => (handlers[msg.op] ? handlers[msg.op](msg) : Promise.reject(new Error(`未知操作: ${msg.op}`))))
     .then((result) => reply(msg.id, true, result))
     .catch((e) => reply(msg.id, false, null, e));
 });

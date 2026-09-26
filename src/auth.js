@@ -5,7 +5,7 @@
  */
 import crypto from "node:crypto";
 
-export const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;   // 30 天
+export const SESSION_TTL_MS = 30 * 24 * 3600 * 1000; // 30 天
 export const MIN_PASSWORD_LENGTH = 6;
 
 export function hashPassword(password) {
@@ -22,7 +22,11 @@ export function verifyPassword(password, stored) {
     const [scheme, saltB64, hashB64] = String(stored || "").split("$");
     if (scheme !== "scrypt" || !saltB64 || !hashB64) return false;
     const expected = Buffer.from(hashB64, "base64url");
-    const actual = crypto.scryptSync(String(password ?? ""), Buffer.from(saltB64, "base64url"), expected.length);
+    const actual = crypto.scryptSync(
+      String(password ?? ""),
+      Buffer.from(saltB64, "base64url"),
+      expected.length,
+    );
     return crypto.timingSafeEqual(expected, actual);
   } catch {
     return false;

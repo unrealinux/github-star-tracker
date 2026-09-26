@@ -1,654 +1,874 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f0f13" />
-  <title>GitHub 星标追踪</title>
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/icon.svg" />
-  <link rel="stylesheet" href="/styles.css" />
-</head>
-<body>
-  <header class="site-header">
-    <div>
-      <h1>GitHub 星标追踪</h1>
-      <p class="subtitle">实时监控热门仓库的星数变化</p>
-    </div>
-    <div class="header-actions">
-      <span id="alert-badge" class="alert-badge hidden">🔔 <span id="alert-count">0</span></span>
-      <span id="quota-badge" class="quota-badge">配额: --</span>
-      <button id="palette-btn" class="btn-icon" title="命令面板 (⌘K / Ctrl+K)">⌘K</button>
-      <span id="token-status" class="token-status">检测中…</span>
-      <button id="theme-toggle" class="btn-icon" title="切换主题">🌓</button>
-    </div>
-  </header>
-
-  <nav class="tab-nav">
-    <button class="tab active" data-tab="repos">📊 仓库列表</button>
-    <button class="tab" data-tab="favorites">⭐ 收藏</button>
-    <button class="tab" data-tab="custom">📌 自定义</button>
-    <button class="tab" data-tab="language-trend">🌍 语言趋势</button>
-    <button class="tab" data-tab="rank">📈 排名变化</button>
-    <button class="tab" data-tab="leaderboard">🏆 排行榜</button>
-    <button class="tab" data-tab="surge">🚀 爆发榜</button>
-    <button class="tab" data-tab="compare">⚖️ 对比</button>
-    <button class="tab" data-tab="overview">📉 全局趋势</button>
-    <button class="tab" data-tab="signals">🔎 信号</button>
-    <button class="tab" data-tab="indices">🧭 指数与生态</button>
-    <button class="tab" data-tab="external">📦 外部指标</button>
-    <button class="tab" data-tab="settings">⚙️ 设置</button>
-  </nav>
-
-  <!-- ===== 仓库列表 ===== -->
-  <section id="tab-repos" class="tab-content active">
-    <section class="controls">
-      <label>最低星数 <input id="min-stars" type="number" min="0" step="1" placeholder="例如 1000" /></label>
-      <label>增速下限 <input id="min-growth" type="number" min="0" step="1" placeholder="例如 5" /></label>
-      <label>增速窗口
-        <select id="window">
-          <option value="day">日（近24h）</option>
-          <option value="week">周（近7天）</option>
-          <option value="month">月（近30天）</option>
-        </select>
-      </label>
-      <label>语言 <select id="language"><option value="">全部</option></select></label>
-      <label>指标
-        <select id="metric">
-          <option value="stars">⭐ 星标</option>
-          <option value="forks">🍴 复刻</option>
-          <option value="issues">❗ Issue</option>
-        </select>
-      </label>
-      <label>排序
-        <select id="sort">
-          <option value="growth">增速</option>
-          <option value="stars">星数</option>
-          <option value="metric">当前指标值</option>
-          <option value="newest">新收录</option>
-          <option value="name">名称</option>
-          <option value="language">语言</option>
-        </select>
-      </label>
-      <label>🔍 搜索 <input id="keyword" type="text" placeholder="名称/描述关键词…" /></label>
-      <label>高亮阈值 <input id="highlight" type="number" min="0" step="1" value="50" /></label>
-      <label class="check-label"><input type="checkbox" id="pin-hot" /> 置顶高增长</label>
-      <label>视图 <select id="view-select"><option value="">— 保存的视图 —</option></select></label>
-      <label>视图名称 <input id="view-name" type="text" placeholder="例如：Rust 高增长" /></label>
-      <button id="view-save" class="btn btn-secondary">保存视图</button>
-      <button id="view-delete" class="btn btn-secondary">删除视图</button>
-      <button id="apply" class="btn btn-secondary">应用筛选</button>
-      <button id="today" class="btn btn-secondary">今日新增榜</button>
-      <button id="export" class="btn btn-secondary">导出 CSV</button>
-      <button id="refresh" class="btn btn-primary">立即更新数据</button>
-      <span id="status" class="status"></span>
-    </section>
-
-    <section class="stats">
-      <div class="stat"><div class="stat-value" id="stat-repos">–</div><div class="stat-label">收录项目</div></div>
-      <div class="stat"><div class="stat-value" id="stat-custom">–</div><div class="stat-label">自定义追踪</div></div>
-      <div class="stat"><div class="stat-value" id="stat-fav">–</div><div class="stat-label">收藏</div></div>
-      <div class="stat"><div class="stat-value" id="stat-snapshots">–</div><div class="stat-label">快照数</div></div>
-      <div class="stat"><div class="stat-value" id="stat-last">–</div><div class="stat-label">最后更新</div></div>
-      <div class="stat"><div class="stat-value" id="stat-next">–</div><div class="stat-label">下次自动抓取</div></div>
-    </section>
-
-    <div class="notice">
-      <strong>说明：</strong>服务按定时任务自动抓取。首次抓取后增速显示「待积累」，第二次及以后出现差值。
-      点击项目行查看详情与增长预测；增速超过「高亮阈值」的项目会高亮/置顶。
-    </div>
-    <div id="today-banner" class="today-banner hidden">🔥 今日新增榜</div>
-
-    <section class="list-header">
-      <h2>项目列表</h2>
-      <span id="list-count" class="list-count"></span>
-    </section>
-    <div id="error" class="error hidden"></div>
-    <div id="list" class="repo-list"></div>
-    <div id="pagination" class="pagination"></div>
-  </section>
-
-  <!-- ===== 收藏 ===== -->
-  <section id="tab-favorites" class="tab-content">
-    <section class="list-header">
-      <h2>⭐ 我的收藏</h2>
-      <span id="fav-count" class="list-count"></span>
-    </section>
-    <div id="fav-list" class="repo-list"></div>
-    <div id="fav-pagination" class="pagination"></div>
-  </section>
-
-  <!-- ===== 自定义 ===== -->
-  <section id="tab-custom" class="tab-content">
-    <section class="list-header">
-      <h2>📌 自定义追踪</h2>
-      <button id="backfill-btn" class="btn btn-secondary">📜 回填自定义仓库历史</button>
-      <button id="add-custom-btn" class="btn btn-secondary">+ 添加仓库</button>
-    </section>
-    <div id="custom-list" class="custom-list"></div>
-    <div id="custom-pagination" class="pagination"></div>
-  </section>
-
-  <!-- ===== 语言趋势 ===== -->
-  <section id="tab-language-trend" class="tab-content">
-    <section class="list-header">
-      <h2>🌍 多语言增长趋势</h2>
-      <select id="trend-window" class="btn btn-secondary">
-        <option value="day">近24h</option>
-        <option value="week">近7天</option>
-        <option value="month">近30天</option>
-      </select>
-    </section>
-    <div id="trend-list" class="trend-list"></div>
-  </section>
-
-  <!-- ===== 排名变化（P1-5）===== -->
-  <section id="tab-rank" class="tab-content">
-    <section class="list-header">
-      <h2>📈 排名变化</h2>
-      <select id="rank-window" class="btn btn-secondary">
-        <option value="day">近24h</option>
-        <option value="week">近7天</option>
-        <option value="month">近30天</option>
-      </select>
-    </section>
-    <div class="rank-columns">
-      <div class="rank-col">
-        <h3 class="rank-col-title up">📈 上升最快</h3>
-        <div id="rank-risers" class="trend-list"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f0f13" />
+    <title>GitHub 星标追踪</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <h1>GitHub 星标追踪</h1>
+        <p class="subtitle">实时监控热门仓库的星数变化</p>
       </div>
-      <div class="rank-col">
-        <h3 class="rank-col-title down">📉 下降最多</h3>
-        <div id="rank-fallers" class="trend-list"></div>
+      <div class="header-actions">
+        <span id="alert-badge" class="alert-badge hidden">🔔 <span id="alert-count">0</span></span>
+        <span id="quota-badge" class="quota-badge">配额: --</span>
+        <button id="palette-btn" class="btn-icon" title="命令面板 (⌘K / Ctrl+K)">⌘K</button>
+        <span id="token-status" class="token-status">检测中…</span>
+        <button id="theme-toggle" class="btn-icon" title="切换主题">🌓</button>
       </div>
-    </div>
-  </section>
+    </header>
 
-  <!-- ===== 🏆 排行榜 ===== -->
-  <section id="tab-leaderboard" class="tab-content">
-    <section class="list-header">
-      <h2>🏆 排行榜</h2>
-      <div class="lb-controls">
-        <label>榜单长度
-          <select id="lb-limit">
-            <option value="5">Top 5</option>
-            <option value="10" selected>Top 10</option>
-            <option value="20">Top 20</option>
-            <option value="50">Top 50</option>
+    <nav class="tab-nav">
+      <button class="tab active" data-tab="repos">📊 仓库列表</button>
+      <button class="tab" data-tab="favorites">⭐ 收藏</button>
+      <button class="tab" data-tab="custom">📌 自定义</button>
+      <button class="tab" data-tab="language-trend">🌍 语言趋势</button>
+      <button class="tab" data-tab="rank">📈 排名变化</button>
+      <button class="tab" data-tab="leaderboard">🏆 排行榜</button>
+      <button class="tab" data-tab="surge">🚀 爆发榜</button>
+      <button class="tab" data-tab="compare">⚖️ 对比</button>
+      <button class="tab" data-tab="overview">📉 全局趋势</button>
+      <button class="tab" data-tab="signals">🔎 信号</button>
+      <button class="tab" data-tab="indices">🧭 指数与生态</button>
+      <button class="tab" data-tab="external">📦 外部指标</button>
+      <button class="tab" data-tab="settings">⚙️ 设置</button>
+    </nav>
+
+    <!-- ===== 仓库列表 ===== -->
+    <section id="tab-repos" class="tab-content active">
+      <section class="controls">
+        <label
+          >最低星数 <input id="min-stars" type="number" min="0" step="1" placeholder="例如 1000"
+        /></label>
+        <label>增速下限 <input id="min-growth" type="number" min="0" step="1" placeholder="例如 5" /></label>
+        <label
+          >增速窗口
+          <select id="window">
+            <option value="day">日（近24h）</option>
+            <option value="week">周（近7天）</option>
+            <option value="month">月（近30天）</option>
           </select>
         </label>
-        <label>指标
-          <select id="lb-metric">
+        <label
+          >语言
+          <select id="language">
+            <option value="">全部</option>
+          </select></label
+        >
+        <label
+          >指标
+          <select id="metric">
             <option value="stars">⭐ 星标</option>
             <option value="forks">🍴 复刻</option>
             <option value="issues">❗ Issue</option>
           </select>
         </label>
-        <label>增速窗口
-          <select id="lb-window">
+        <label
+          >排序
+          <select id="sort">
+            <option value="growth">增速</option>
+            <option value="stars">星数</option>
+            <option value="metric">当前指标值</option>
+            <option value="newest">新收录</option>
+            <option value="name">名称</option>
+            <option value="language">语言</option>
+          </select>
+        </label>
+        <label>🔍 搜索 <input id="keyword" type="text" placeholder="名称/描述关键词…" /></label>
+        <label>高亮阈值 <input id="highlight" type="number" min="0" step="1" value="50" /></label>
+        <label class="check-label"><input type="checkbox" id="pin-hot" /> 置顶高增长</label>
+        <label
+          >视图
+          <select id="view-select">
+            <option value="">— 保存的视图 —</option>
+          </select></label
+        >
+        <label>视图名称 <input id="view-name" type="text" placeholder="例如：Rust 高增长" /></label>
+        <button id="view-save" class="btn btn-secondary">保存视图</button>
+        <button id="view-delete" class="btn btn-secondary">删除视图</button>
+        <button id="apply" class="btn btn-secondary">应用筛选</button>
+        <button id="today" class="btn btn-secondary">今日新增榜</button>
+        <button id="export" class="btn btn-secondary">导出 CSV</button>
+        <button id="refresh" class="btn btn-primary">立即更新数据</button>
+        <span id="status" class="status"></span>
+      </section>
+
+      <section class="stats">
+        <div class="stat">
+          <div class="stat-value" id="stat-repos">–</div>
+          <div class="stat-label">收录项目</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-custom">–</div>
+          <div class="stat-label">自定义追踪</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-fav">–</div>
+          <div class="stat-label">收藏</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-snapshots">–</div>
+          <div class="stat-label">快照数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-last">–</div>
+          <div class="stat-label">最后更新</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-next">–</div>
+          <div class="stat-label">下次自动抓取</div>
+        </div>
+      </section>
+
+      <div class="notice">
+        <strong>说明：</strong>服务按定时任务自动抓取。首次抓取后增速显示「待积累」，第二次及以后出现差值。
+        点击项目行查看详情与增长预测；增速超过「高亮阈值」的项目会高亮/置顶。
+      </div>
+      <div id="today-banner" class="today-banner hidden">🔥 今日新增榜</div>
+
+      <section class="list-header">
+        <h2>项目列表</h2>
+        <span id="list-count" class="list-count"></span>
+      </section>
+      <div id="error" class="error hidden"></div>
+      <div id="list" class="repo-list"></div>
+      <div id="pagination" class="pagination"></div>
+    </section>
+
+    <!-- ===== 收藏 ===== -->
+    <section id="tab-favorites" class="tab-content">
+      <section class="list-header">
+        <h2>⭐ 我的收藏</h2>
+        <span id="fav-count" class="list-count"></span>
+      </section>
+      <div id="fav-list" class="repo-list"></div>
+      <div id="fav-pagination" class="pagination"></div>
+    </section>
+
+    <!-- ===== 自定义 ===== -->
+    <section id="tab-custom" class="tab-content">
+      <section class="list-header">
+        <h2>📌 自定义追踪</h2>
+        <button id="backfill-btn" class="btn btn-secondary">📜 回填自定义仓库历史</button>
+        <button id="add-custom-btn" class="btn btn-secondary">+ 添加仓库</button>
+      </section>
+      <div id="custom-list" class="custom-list"></div>
+      <div id="custom-pagination" class="pagination"></div>
+    </section>
+
+    <!-- ===== 语言趋势 ===== -->
+    <section id="tab-language-trend" class="tab-content">
+      <section class="list-header">
+        <h2>🌍 多语言增长趋势</h2>
+        <select id="trend-window" class="btn btn-secondary">
+          <option value="day">近24h</option>
+          <option value="week">近7天</option>
+          <option value="month">近30天</option>
+        </select>
+      </section>
+      <div id="trend-list" class="trend-list"></div>
+    </section>
+
+    <!-- ===== 排名变化（P1-5）===== -->
+    <section id="tab-rank" class="tab-content">
+      <section class="list-header">
+        <h2>📈 排名变化</h2>
+        <select id="rank-window" class="btn btn-secondary">
+          <option value="day">近24h</option>
+          <option value="week">近7天</option>
+          <option value="month">近30天</option>
+        </select>
+      </section>
+      <div class="rank-columns">
+        <div class="rank-col">
+          <h3 class="rank-col-title up">📈 上升最快</h3>
+          <div id="rank-risers" class="trend-list"></div>
+        </div>
+        <div class="rank-col">
+          <h3 class="rank-col-title down">📉 下降最多</h3>
+          <div id="rank-fallers" class="trend-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 🏆 排行榜 ===== -->
+    <section id="tab-leaderboard" class="tab-content">
+      <section class="list-header">
+        <h2>🏆 排行榜</h2>
+        <div class="lb-controls">
+          <label
+            >榜单长度
+            <select id="lb-limit">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+              <option value="20">Top 20</option>
+              <option value="50">Top 50</option>
+            </select>
+          </label>
+          <label
+            >指标
+            <select id="lb-metric">
+              <option value="stars">⭐ 星标</option>
+              <option value="forks">🍴 复刻</option>
+              <option value="issues">❗ Issue</option>
+            </select>
+          </label>
+          <label
+            >增速窗口
+            <select id="lb-window">
+              <option value="day">近24h</option>
+              <option value="week">近7天</option>
+              <option value="month">近30天</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div id="lb-notice" class="lb-notice"></div>
+
+      <div class="lb-columns">
+        <div class="lb-col">
+          <h3 class="lb-col-title stars">⭐ 总星数排行</h3>
+          <div id="lb-by-stars" class="lb-list"></div>
+        </div>
+        <div class="lb-col">
+          <h3 class="lb-col-title growth">🚀 日均新增排行</h3>
+          <div id="lb-by-growth" class="lb-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 🚀 爆发榜 + ⏪ 历史回放 ===== -->
+    <section id="tab-surge" class="tab-content">
+      <section class="list-header">
+        <h2>🚀 爆发榜（增速加速度）</h2>
+        <div class="lb-controls">
+          <label
+            >榜单长度
+            <select id="surge-limit">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+              <option value="20">Top 20</option>
+            </select>
+          </label>
+          <label
+            >指标
+            <select id="surge-metric">
+              <option value="stars">⭐ 星标</option>
+              <option value="forks">🍴 复刻</option>
+              <option value="issues">❗ Issue</option>
+            </select>
+          </label>
+          <label
+            >最低星数
+            <input id="surge-min-stars" type="number" min="0" step="1000" value="1000" />
+          </label>
+          <button id="surge-reload" class="btn btn-secondary">刷新</button>
+        </div>
+      </section>
+      <div id="surge-notice" class="lb-notice"></div>
+
+      <div class="lb-columns">
+        <div class="lb-col">
+          <h3 class="lb-col-title growth">🚀 加速上升</h3>
+          <div id="surge-rising" class="lb-list"></div>
+        </div>
+        <div class="lb-col">
+          <h3 class="lb-col-title down">🔻 热度衰减</h3>
+          <div id="surge-decaying" class="lb-list"></div>
+        </div>
+      </div>
+
+      <section class="list-header">
+        <h2>⏪ 历史回放</h2>
+        <span class="muted" style="font-size: 12px">选择过去某个时刻，查看当时的榜单</span>
+      </section>
+      <section class="controls">
+        <label
+          >回放时刻
+          <input id="replay-at" type="datetime-local" />
+        </label>
+        <label
+          >增速窗口
+          <select id="replay-window">
             <option value="day">近24h</option>
             <option value="week">近7天</option>
             <option value="month">近30天</option>
           </select>
         </label>
-      </div>
-    </section>
-
-    <div id="lb-notice" class="lb-notice"></div>
-
-    <div class="lb-columns">
-      <div class="lb-col">
-        <h3 class="lb-col-title stars">⭐ 总星数排行</h3>
-        <div id="lb-by-stars" class="lb-list"></div>
-      </div>
-      <div class="lb-col">
-        <h3 class="lb-col-title growth">🚀 日均新增排行</h3>
-        <div id="lb-by-growth" class="lb-list"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== 🚀 爆发榜 + ⏪ 历史回放 ===== -->
-  <section id="tab-surge" class="tab-content">
-    <section class="list-header">
-      <h2>🚀 爆发榜（增速加速度）</h2>
-      <div class="lb-controls">
-        <label>榜单长度
-          <select id="surge-limit">
-            <option value="5">Top 5</option>
-            <option value="10" selected>Top 10</option>
-            <option value="20">Top 20</option>
+        <label
+          >排序
+          <select id="replay-sort">
+            <option value="stars">星数</option>
+            <option value="growth">当时增速</option>
           </select>
         </label>
-        <label>指标
-          <select id="surge-metric">
+        <button id="replay-go" class="btn btn-primary">回放</button>
+        <button id="replay-now" class="btn btn-secondary">重置为现在</button>
+        <span id="replay-status" class="status"></span>
+      </section>
+      <div id="replay-result" class="repo-list"></div>
+    </section>
+
+    <!-- ===== ⚖️ 仓库对比 ===== -->
+    <section id="tab-compare" class="tab-content">
+      <section class="list-header">
+        <h2>⚖️ 仓库对比</h2>
+        <span class="muted" style="font-size: 12px">最多同时对比 8 个仓库，可按百分比变化归一化叠加</span>
+      </section>
+      <section class="controls">
+        <label style="flex: 1 1 260px"
+          >添加仓库
+          <input id="cmp-input" list="cmp-options" type="text" placeholder="输入或选择 owner/repo" />
+          <datalist id="cmp-options"></datalist>
+        </label>
+        <button id="cmp-add" class="btn btn-secondary">添加</button>
+        <label
+          >窗口
+          <select id="cmp-window">
+            <option value="day">近24h</option>
+            <option value="week">近7天</option>
+            <option value="month">近30天</option>
+          </select>
+        </label>
+        <label
+          >指标
+          <select id="cmp-metric">
             <option value="stars">⭐ 星标</option>
             <option value="forks">🍴 复刻</option>
             <option value="issues">❗ Issue</option>
           </select>
         </label>
-        <label>最低星数
-          <input id="surge-min-stars" type="number" min="0" step="1000" value="1000" />
+        <label class="check-label"><input type="checkbox" id="cmp-pct" checked /> 归一化 % 变化</label>
+        <label class="check-label"><input type="checkbox" id="cmp-log" /> 对数轴</label>
+        <button id="cmp-clear" class="btn btn-secondary">清空</button>
+      </section>
+      <div id="cmp-chips" class="chips"></div>
+      <div id="cmp-chart" class="chart-box"></div>
+      <div id="cmp-table"></div>
+      <div id="cmp-crossings"></div>
+    </section>
+
+    <!-- ===== 🔎 信号 ===== -->
+    <section id="tab-signals" class="tab-content">
+      <section class="list-header">
+        <h2>🔎 异常检测（z-score）</h2>
+        <div class="lb-controls">
+          <label
+            >天数 <input id="an-days" type="number" min="5" max="120" value="30" style="width: 80px"
+          /></label>
+          <label
+            >z 阈值
+            <input id="an-z" type="number" min="1" max="10" step="0.5" value="2.5" style="width: 80px"
+          /></label>
+          <label
+            >最少样本 <input id="an-min" type="number" min="3" max="60" value="5" style="width: 80px"
+          /></label>
+          <label
+            >最低星数
+            <input id="an-min-stars" type="number" min="0" step="1000" value="0" style="width: 100px"
+          /></label>
+          <button id="an-reload" class="btn btn-secondary">刷新</button>
+        </div>
+      </section>
+      <div id="an-notice" class="lb-notice"></div>
+      <div class="lb-columns">
+        <div class="lb-col">
+          <h3 class="lb-col-title growth">📈 突增</h3>
+          <div id="an-spikes" class="lb-list"></div>
+        </div>
+        <div class="lb-col">
+          <h3 class="lb-col-title down">📉 骤降</h3>
+          <div id="an-drops" class="lb-list"></div>
+        </div>
+      </div>
+
+      <section class="list-header">
+        <h2>🐎 黑马榜（低星高增速）</h2>
+        <div class="lb-controls">
+          <label
+            >星数上限
+            <input
+              id="rs-max"
+              type="number"
+              min="0"
+              step="1000"
+              placeholder="自动（中位数）"
+              style="width: 140px"
+          /></label>
+          <label
+            >最低星数 <input id="rs-min" type="number" min="0" step="50" value="100" style="width: 100px"
+          /></label>
+          <label>最短年龄 <input id="rs-days" type="number" min="0" value="14" style="width: 90px" /></label>
+          <button id="rs-reload" class="btn btn-secondary">刷新</button>
+        </div>
+      </section>
+      <div id="rs-notice" class="lb-notice"></div>
+      <div id="rs-list" class="lb-list"></div>
+
+      <section class="list-header">
+        <h2>🌊 事件聚类</h2>
+        <div class="lb-controls">
+          <label
+            >天数 <input id="ev-days" type="number" min="5" max="120" value="30" style="width: 80px"
+          /></label>
+          <label
+            >z 阈值
+            <input id="ev-z" type="number" min="1" max="10" step="0.5" value="1.5" style="width: 80px"
+          /></label>
+          <label
+            >最少仓库 <input id="ev-min-repos" type="number" min="2" max="50" value="3" style="width: 90px"
+          /></label>
+          <label
+            >最少样本 <input id="ev-min" type="number" min="3" max="60" value="3" style="width: 90px"
+          /></label>
+          <button id="ev-reload" class="btn btn-secondary">刷新</button>
+        </div>
+      </section>
+      <div id="ev-notice" class="lb-notice warn"></div>
+      <div id="ev-list" class="event-list"></div>
+
+      <section class="list-header">
+        <h2>🧪 告警规则回测</h2>
+        <div class="lb-controls">
+          <label
+            >天数 <input id="bt-days" type="number" min="7" max="365" value="90" style="width: 80px"
+          /></label>
+          <label
+            >增长阈值 <input id="bt-threshold" type="number" min="0" value="50" style="width: 90px"
+          /></label>
+          <label>掉星阈值 <input id="bt-drop" type="number" min="0" value="50" style="width: 90px" /></label>
+          <label class="check-label"><input type="checkbox" id="bt-ondrop" /> 掉星告警</label>
+          <label class="check-label"><input type="checkbox" id="bt-onmilestone" /> 里程碑告警</label>
+          <label
+            >最低星数
+            <input id="bt-minstars" type="number" min="0" step="1000" value="0" style="width: 100px"
+          /></label>
+          <button id="bt-run" class="btn btn-primary">回测</button>
+        </div>
+      </section>
+      <div id="bt-notice" class="lb-notice"></div>
+      <section class="stats" id="bt-summary"></section>
+      <div class="lb-columns">
+        <div class="lb-col">
+          <h3 class="lb-col-title">触发最多的仓库</h3>
+          <div id="bt-repos" class="lb-list"></div>
+        </div>
+        <div class="lb-col">
+          <h3 class="lb-col-title down">最近触发</h3>
+          <div id="bt-fires" class="lb-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 🧭 指数与生态 ===== -->
+    <section id="tab-indices" class="tab-content">
+      <section class="list-header">
+        <h2>🧭 自定义指数</h2>
+        <span class="muted" style="font-size: 12px"
+          >用本地筛选条件定义一组仓库，合成一条归一化曲线（等权 / 星数加权）</span
+        >
+      </section>
+      <section class="controls">
+        <label>名称 <input id="idx-name" type="text" placeholder="例如：Python 高星指数" /></label>
+        <label
+          >语言
+          <input id="idx-language" type="text" placeholder="如 Python（留空=不限）" style="width: 130px"
+        /></label>
+        <label
+          >最低星数
+          <input id="idx-min" type="number" min="0" step="1000" placeholder="如 20000" style="width: 100px"
+        /></label>
+        <label
+          >最高星数
+          <input id="idx-max" type="number" min="0" step="1000" placeholder="不限" style="width: 100px"
+        /></label>
+        <label
+          >关键词 <input id="idx-keyword" type="text" placeholder="名称/描述关键词" style="width: 140px"
+        /></label>
+        <button id="idx-add" class="btn btn-primary">创建指数</button>
+      </section>
+      <div id="idx-list" class="entity-list"></div>
+      <section class="list-header">
+        <h2 id="idx-detail-title">指数走势</h2>
+        <div class="lb-controls">
+          <label
+            >天数
+            <select id="idx-days">
+              <option value="30">近 30 天</option>
+              <option value="60" selected>近 60 天</option>
+              <option value="180">近 180 天</option>
+            </select></label
+          >
+          <label
+            >权重
+            <select id="idx-weight">
+              <option value="equal">等权</option>
+              <option value="cap">星数加权</option>
+            </select></label
+          >
+        </div>
+      </section>
+      <div id="idx-chart" class="chart-box"></div>
+      <div id="idx-members"></div>
+
+      <section class="list-header">
+        <h2>🌐 生态 / Topic 追踪</h2>
+        <span class="muted" style="font-size: 12px"
+          >用 GitHub 搜索语法定义（如 <code>topic:llm</code>、<code>language:rust stars:&gt;20000</code
+          >），刷新时自动抓取成员</span
+        >
+      </section>
+      <section class="controls">
+        <label>名称 <input id="q-label" type="text" placeholder="例如：LLM 生态" /></label>
+        <label style="flex: 1 1 320px"
+          >搜索语法 <input id="q-query" type="text" placeholder="topic:llm 或 language:rust stars:>20000"
+        /></label>
+        <button id="q-add" class="btn btn-primary">添加追踪</button>
+        <button id="q-refresh" class="btn btn-secondary">立即刷新成员</button>
+        <span id="q-status" class="status"></span>
+      </section>
+      <div id="q-list" class="entity-list"></div>
+      <section class="list-header">
+        <h2 id="q-detail-title">生态走势</h2>
+        <div class="lb-controls">
+          <label
+            >天数
+            <select id="q-days">
+              <option value="30">近 30 天</option>
+              <option value="60" selected>近 60 天</option>
+              <option value="180">近 180 天</option>
+            </select></label
+          >
+          <label
+            >权重
+            <select id="q-weight">
+              <option value="equal">等权</option>
+              <option value="cap">星数加权</option>
+            </select></label
+          >
+        </div>
+      </section>
+      <div id="q-chart" class="chart-box"></div>
+      <div id="q-members"></div>
+    </section>
+
+    <!-- ===== 📉 全局趋势 ===== -->
+    <section id="tab-overview" class="tab-content">
+      <section class="list-header">
+        <h2>📉 全局趋势</h2>
+        <div class="lb-controls">
+          <label
+            >时间范围
+            <select id="ov-days">
+              <option value="30">近 30 天</option>
+              <option value="60" selected>近 60 天</option>
+              <option value="180">近 180 天</option>
+              <option value="365">近一年</option>
+            </select>
+          </label>
+          <button id="ov-reload" class="btn btn-secondary">刷新</button>
+        </div>
+      </section>
+      <section class="stats" id="ov-health"></section>
+      <div class="chart-box">
+        <h3 class="chart-title">每日新增星数热力图</h3>
+        <div id="ov-heatmap"></div>
+      </div>
+      <div class="chart-box">
+        <h3 class="chart-title">每日总星数</h3>
+        <div id="ov-stars"></div>
+      </div>
+      <div class="chart-box">
+        <h3 class="chart-title">每日快照活动</h3>
+        <div id="ov-activity"></div>
+      </div>
+      <div class="chart-box">
+        <h3 class="chart-title">每日新收录</h3>
+        <div id="ov-discoveries"></div>
+      </div>
+      <div class="chart-box">
+        <h3 class="chart-title">语言分布（Top 8）</h3>
+        <div id="ov-languages"></div>
+      </div>
+    </section>
+
+    <!-- ===== 📦 外部指标（P3）===== -->
+    <section id="tab-external" class="tab-content">
+      <section class="list-header">
+        <h2>📦 外部指标追踪</h2>
+        <div class="lb-controls">
+          <label
+            >增速窗口
+            <select id="ext-window">
+              <option value="day">近24h</option>
+              <option value="week">近7天</option>
+              <option value="month">近30天</option>
+            </select>
+          </label>
+          <button id="add-metric-btn" class="btn btn-secondary">+ 添加指标</button>
+          <button id="refresh-metrics" class="btn btn-primary">刷新数据</button>
+        </div>
+      </section>
+      <div class="lb-notice">
+        追踪 GitHub 以外的公开指标：npm / PyPI / Docker Hub / crates.io 的下载量或拉取量。
+        与星标追踪使用同一套快照与增长引擎。
+      </div>
+      <div id="ext-list" class="ext-list"></div>
+    </section>
+
+    <!-- ===== 设置 ===== -->
+    <section id="tab-settings" class="tab-content">
+      <section class="settings-section">
+        <h2>⚙️ 基本设置</h2>
+        <div class="setting-row">
+          <label>最低星数 <input id="set-min-stars" type="number" min="0" /></label>
+          <label>增速下限 <input id="set-min-growth" type="number" min="0" /></label>
+        </div>
+        <div class="setting-row">
+          <label>快照保留天数 <input id="set-retention" type="number" min="7" max="365" /></label>
+          <label>告警阈值（日增星数）<input id="set-alert-threshold" type="number" min="0" /></label>
+        </div>
+        <div class="setting-row">
+          <label class="check-label"><input type="checkbox" id="set-alert-drop" /> 掉星告警</label>
+          <label>掉星阈值 <input id="set-drop-threshold" type="number" min="0" /></label>
+          <label class="check-label"><input type="checkbox" id="set-alert-milestone" /> 里程碑告警</label>
+        </div>
+        <div class="setting-row">
+          <label class="check-label"><input type="checkbox" id="set-digest-enabled" /> 每日摘要推送</label>
+          <label>摘要时间（HH:MM）<input id="set-digest-time" type="time" /></label>
+          <label class="check-label"><input type="checkbox" id="set-auto-backup" /> 每日自动备份</label>
+        </div>
+        <div class="setting-row">
+          <label
+            >配额保护下限
+            <input
+              id="set-quota-floor"
+              type="number"
+              min="0"
+              value="3"
+              title="剩余搜索配额低于此值时自动刷新会跳过"
+          /></label>
+          <label
+            >外部指标间隔(h)
+            <input id="set-ext-interval" type="number" min="0" value="24" title="0 = 每轮都抓"
+          /></label>
+          <label
+            >快照降采样(天)
+            <input
+              id="set-rollup-days"
+              type="number"
+              min="0"
+              value="30"
+              title="超过该天数的快照压缩为每周一条；0 = 关闭"
+          /></label>
+        </div>
+        <div class="setting-row">
+          <label
+            >自动轮询间隔（分钟，0=关闭）<input id="set-auto-poll" type="number" min="0" max="1440"
+          /></label>
+          <label
+            >主题
+            <select id="set-theme">
+              <option value="dark">深色</option>
+              <option value="light">浅色</option>
+              <option value="contrast">高对比度</option>
+            </select>
+          </label>
+        </div>
+        <div class="setting-row">
+          <label style="flex: 1 1 100%"
+            >自定义 GitHub 搜索语法（留空则用「最低星数」搜索）
+            <input
+              id="set-search-query"
+              type="text"
+              placeholder="例如：language:rust stars:>1000 created:>2024-01-01"
+            />
+          </label>
+        </div>
+        <button id="save-settings" class="btn btn-primary">保存设置</button>
+      </section>
+
+      <section class="settings-section">
+        <h2>🔗 访问控制</h2>
+        <p class="muted">若服务端设置了 <code>API_KEY</code> 环境变量，需要在此填写才能访问。</p>
+        <div class="setting-row">
+          <label style="flex: 1 1 100%"
+            >API Key<input id="set-api-key" type="password" placeholder="留空表示服务端未启用认证"
+          /></label>
+        </div>
+        <button id="save-api-key" class="btn btn-secondary">保存 API Key</button>
+        <span id="api-key-status" class="muted"></span>
+      </section>
+
+      <section class="settings-section">
+        <h2>🔔 告警通知</h2>
+        <p class="muted">
+          当仓库 24h 新增达阈值、出现掉星或突破里程碑时触发。支持 Slack / Discord / Telegram / 飞书 / 钉钉 /
+          ntfy / Bark / Server酱 / 通用 JSON。
+        </p>
+        <div class="setting-row">
+          <label style="flex: 1 1 100%"
+            >Webhook 地址<input
+              id="set-webhook-url"
+              type="text"
+              placeholder="https://hooks.slack.com/services/..."
+          /></label>
+        </div>
+        <div class="setting-row">
+          <label
+            >Webhook 类型
+            <select id="set-webhook-type"></select>
+          </label>
+          <label>&nbsp;<button id="test-webhook" class="btn btn-secondary">发送测试通知</button></label>
+          <label>&nbsp;<button id="test-digest" class="btn btn-secondary">立即发送摘要</button></label>
+        </div>
+        <div id="alerts-preview" class="alerts-preview"></div>
+        <button id="clear-alerts" class="btn btn-secondary">清除已读告警</button>
+      </section>
+
+      <section class="settings-section">
+        <h2>📲 浏览器通知（Web Push）</h2>
+        <p class="muted">在浏览器/手机系统层面接收告警，无需第三方 Webhook（需 HTTPS 或 localhost）。</p>
+        <div class="setting-row">
+          <button id="push-enable" class="btn btn-secondary">启用浏览器通知</button>
+          <button id="push-disable" class="btn btn-secondary">取消订阅</button>
+          <button id="push-test" class="btn btn-secondary">发送测试推送</button>
+          <span id="push-status" class="muted"></span>
+        </div>
+      </section>
+
+      <section class="settings-section" id="account-section">
+        <h2>🔑 账号</h2>
+        <div class="setting-row">
+          <span id="account-who" class="muted"></span>
+          <label>新密码 <input id="my-new-pass" type="password" autocomplete="new-password" /></label>
+          <button id="change-pass-btn" class="btn btn-secondary">修改密码</button>
+          <button id="logout-btn" class="btn btn-secondary">退出登录</button>
+          <button
+            id="enable-multiuser-btn"
+            class="btn btn-secondary hidden"
+            title="创建管理员账号并启用登录与数据隔离"
+          >
+            启用多用户模式
+          </button>
+        </div>
+      </section>
+
+      <section class="settings-section hidden" id="user-admin-section">
+        <h2>👥 用户管理</h2>
+        <p class="muted">
+          多用户模式下每位成员的收藏、自定义仓库、指数、追踪、视图、告警阈值与推送订阅互相隔离。
+        </p>
+        <div id="user-list" class="entity-list"></div>
+        <div class="setting-row">
+          <label>用户名 <input id="new-user-name" type="text" placeholder="2-40 位字母/数字/_-. " /></label>
+          <label>密码 <input id="new-user-pass" type="password" autocomplete="new-password" /></label>
+          <label
+            >角色
+            <select id="new-user-role">
+              <option value="member">成员</option>
+              <option value="admin">管理员</option>
+            </select></label
+          >
+          <button id="add-user-btn" class="btn btn-secondary">添加用户</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h2>💾 数据维护</h2>
+        <div class="setting-row">
+          <button id="export-db" class="btn btn-secondary">导出备份 (.db)</button>
+          <button id="export-json" class="btn btn-secondary">导出 JSON</button>
+          <label class="btn btn-secondary" style="cursor: pointer"
+            >导入 JSON<input
+              id="import-json"
+              type="file"
+              accept=".json,application/json"
+              style="display: none"
+          /></label>
+          <button id="cleanup-btn" class="btn btn-secondary">清理过期快照</button>
+        </div>
+      </section>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <div id="detail-overlay" class="overlay hidden">
+      <div class="detail-modal" id="detail-modal">
+        <button class="detail-close" id="detail-close" aria-label="关闭">×</button>
+        <div id="detail-body"></div>
+      </div>
+    </div>
+
+    <!-- 添加自定义仓库弹窗 -->
+    <div id="custom-overlay" class="overlay hidden">
+      <div class="detail-modal" style="max-width: 420px">
+        <button class="detail-close" id="custom-close" aria-label="关闭">×</button>
+        <h3>添加自定义仓库</h3>
+        <label
+          >仓库地址 <input id="custom-name" type="text" placeholder="owner/repo，如 microsoft/vscode"
+        /></label>
+        <label>备注（可选）<input id="custom-note" type="text" placeholder="例如：公司核心项目" /></label>
+        <div class="modal-actions">
+          <button id="custom-cancel" class="btn btn-secondary">取消</button>
+          <button id="custom-add" class="btn btn-primary">添加并追踪</button>
+        </div>
+        <div id="custom-error" class="error hidden"></div>
+      </div>
+    </div>
+
+    <!-- 添加外部指标弹窗 -->
+    <div id="metric-overlay" class="overlay hidden">
+      <div class="detail-modal" style="max-width: 440px">
+        <button class="detail-close" id="metric-close" aria-label="关闭">×</button>
+        <h3>添加外部指标</h3>
+        <label
+          >数据源
+          <select id="metric-source"></select>
         </label>
-        <button id="surge-reload" class="btn btn-secondary">刷新</button>
-      </div>
-    </section>
-    <div id="surge-notice" class="lb-notice"></div>
-
-    <div class="lb-columns">
-      <div class="lb-col">
-        <h3 class="lb-col-title growth">🚀 加速上升</h3>
-        <div id="surge-rising" class="lb-list"></div>
-      </div>
-      <div class="lb-col">
-        <h3 class="lb-col-title down">🔻 热度衰减</h3>
-        <div id="surge-decaying" class="lb-list"></div>
+        <label>名称 <input id="metric-key" type="text" placeholder="选择数据源后显示提示" /></label>
+        <div class="modal-actions">
+          <button id="metric-cancel" class="btn btn-secondary">取消</button>
+          <button id="metric-add" class="btn btn-primary">添加并追踪</button>
+        </div>
+        <div id="metric-error" class="error hidden"></div>
       </div>
     </div>
 
-    <section class="list-header">
-      <h2>⏪ 历史回放</h2>
-      <span class="muted" style="font-size:12px">选择过去某个时刻，查看当时的榜单</span>
-    </section>
-    <section class="controls">
-      <label>回放时刻
-        <input id="replay-at" type="datetime-local" />
-      </label>
-      <label>增速窗口
-        <select id="replay-window">
-          <option value="day">近24h</option>
-          <option value="week">近7天</option>
-          <option value="month">近30天</option>
-        </select>
-      </label>
-      <label>排序
-        <select id="replay-sort">
-          <option value="stars">星数</option>
-          <option value="growth">当时增速</option>
-        </select>
-      </label>
-      <button id="replay-go" class="btn btn-primary">回放</button>
-      <button id="replay-now" class="btn btn-secondary">重置为现在</button>
-      <span id="replay-status" class="status"></span>
-    </section>
-    <div id="replay-result" class="repo-list"></div>
-  </section>
-
-  <!-- ===== ⚖️ 仓库对比 ===== -->
-  <section id="tab-compare" class="tab-content">
-    <section class="list-header">
-      <h2>⚖️ 仓库对比</h2>
-      <span class="muted" style="font-size:12px">最多同时对比 8 个仓库，可按百分比变化归一化叠加</span>
-    </section>
-    <section class="controls">
-      <label style="flex:1 1 260px">添加仓库
-        <input id="cmp-input" list="cmp-options" type="text" placeholder="输入或选择 owner/repo" />
-        <datalist id="cmp-options"></datalist>
-      </label>
-      <button id="cmp-add" class="btn btn-secondary">添加</button>
-      <label>窗口
-        <select id="cmp-window">
-          <option value="day">近24h</option>
-          <option value="week">近7天</option>
-          <option value="month">近30天</option>
-        </select>
-      </label>
-      <label>指标
-        <select id="cmp-metric">
-          <option value="stars">⭐ 星标</option>
-          <option value="forks">🍴 复刻</option>
-          <option value="issues">❗ Issue</option>
-        </select>
-      </label>
-      <label class="check-label"><input type="checkbox" id="cmp-pct" checked /> 归一化 % 变化</label>
-      <label class="check-label"><input type="checkbox" id="cmp-log" /> 对数轴</label>
-      <button id="cmp-clear" class="btn btn-secondary">清空</button>
-    </section>
-    <div id="cmp-chips" class="chips"></div>
-    <div id="cmp-chart" class="chart-box"></div>
-    <div id="cmp-table"></div>
-    <div id="cmp-crossings"></div>
-  </section>
-
-  <!-- ===== 🔎 信号 ===== -->
-  <section id="tab-signals" class="tab-content">
-    <section class="list-header">
-      <h2>🔎 异常检测（z-score）</h2>
-      <div class="lb-controls">
-        <label>天数 <input id="an-days" type="number" min="5" max="120" value="30" style="width:80px" /></label>
-        <label>z 阈值 <input id="an-z" type="number" min="1" max="10" step="0.5" value="2.5" style="width:80px" /></label>
-        <label>最少样本 <input id="an-min" type="number" min="3" max="60" value="5" style="width:80px" /></label>
-        <label>最低星数 <input id="an-min-stars" type="number" min="0" step="1000" value="0" style="width:100px" /></label>
-        <button id="an-reload" class="btn btn-secondary">刷新</button>
+    <!-- 命令面板（⌘K）-->
+    <div id="palette-overlay" class="overlay hidden">
+      <div class="palette">
+        <input
+          id="palette-input"
+          type="text"
+          autocomplete="off"
+          placeholder="搜索仓库、页面或动作…（↑↓ 选择 · Enter 执行 · Esc 关闭）"
+        />
+        <div id="palette-list" class="palette-list"></div>
       </div>
-    </section>
-    <div id="an-notice" class="lb-notice"></div>
-    <div class="lb-columns">
-      <div class="lb-col"><h3 class="lb-col-title growth">📈 突增</h3><div id="an-spikes" class="lb-list"></div></div>
-      <div class="lb-col"><h3 class="lb-col-title down">📉 骤降</h3><div id="an-drops" class="lb-list"></div></div>
     </div>
 
-    <section class="list-header">
-      <h2>🐎 黑马榜（低星高增速）</h2>
-      <div class="lb-controls">
-        <label>星数上限 <input id="rs-max" type="number" min="0" step="1000" placeholder="自动（中位数）" style="width:140px" /></label>
-        <label>最低星数 <input id="rs-min" type="number" min="0" step="50" value="100" style="width:100px" /></label>
-        <label>最短年龄 <input id="rs-days" type="number" min="0" value="14" style="width:90px" /></label>
-        <button id="rs-reload" class="btn btn-secondary">刷新</button>
+    <!-- 登录 / 初始化管理员 -->
+    <div id="auth-overlay" class="overlay hidden">
+      <div class="detail-modal" style="max-width: 380px">
+        <h3 id="auth-title">登录</h3>
+        <p id="auth-hint" class="muted" style="font-size: 12px; margin: 0 0 12px"></p>
+        <label>用户名 <input id="auth-username" type="text" autocomplete="username" /></label>
+        <label>密码 <input id="auth-password" type="password" autocomplete="current-password" /></label>
+        <div class="modal-actions">
+          <button id="auth-submit" class="btn btn-primary">登录</button>
+        </div>
+        <div id="auth-error" class="error hidden"></div>
       </div>
-    </section>
-    <div id="rs-notice" class="lb-notice"></div>
-    <div id="rs-list" class="lb-list"></div>
-
-    <section class="list-header">
-      <h2>🌊 事件聚类</h2>
-      <div class="lb-controls">
-        <label>天数 <input id="ev-days" type="number" min="5" max="120" value="30" style="width:80px" /></label>
-        <label>z 阈值 <input id="ev-z" type="number" min="1" max="10" step="0.5" value="1.5" style="width:80px" /></label>
-        <label>最少仓库 <input id="ev-min-repos" type="number" min="2" max="50" value="3" style="width:90px" /></label>
-        <label>最少样本 <input id="ev-min" type="number" min="3" max="60" value="3" style="width:90px" /></label>
-        <button id="ev-reload" class="btn btn-secondary">刷新</button>
-      </div>
-    </section>
-    <div id="ev-notice" class="lb-notice warn"></div>
-    <div id="ev-list" class="event-list"></div>
-
-    <section class="list-header">
-      <h2>🧪 告警规则回测</h2>
-      <div class="lb-controls">
-        <label>天数 <input id="bt-days" type="number" min="7" max="365" value="90" style="width:80px" /></label>
-        <label>增长阈值 <input id="bt-threshold" type="number" min="0" value="50" style="width:90px" /></label>
-        <label>掉星阈值 <input id="bt-drop" type="number" min="0" value="50" style="width:90px" /></label>
-        <label class="check-label"><input type="checkbox" id="bt-ondrop" /> 掉星告警</label>
-        <label class="check-label"><input type="checkbox" id="bt-onmilestone" /> 里程碑告警</label>
-        <label>最低星数 <input id="bt-minstars" type="number" min="0" step="1000" value="0" style="width:100px" /></label>
-        <button id="bt-run" class="btn btn-primary">回测</button>
-      </div>
-    </section>
-    <div id="bt-notice" class="lb-notice"></div>
-    <section class="stats" id="bt-summary"></section>
-    <div class="lb-columns">
-      <div class="lb-col"><h3 class="lb-col-title">触发最多的仓库</h3><div id="bt-repos" class="lb-list"></div></div>
-      <div class="lb-col"><h3 class="lb-col-title down">最近触发</h3><div id="bt-fires" class="lb-list"></div></div>
     </div>
-  </section>
 
-  <!-- ===== 🧭 指数与生态 ===== -->
-  <section id="tab-indices" class="tab-content">
-    <section class="list-header">
-      <h2>🧭 自定义指数</h2>
-      <span class="muted" style="font-size:12px">用本地筛选条件定义一组仓库，合成一条归一化曲线（等权 / 星数加权）</span>
-    </section>
-    <section class="controls">
-      <label>名称 <input id="idx-name" type="text" placeholder="例如：Python 高星指数" /></label>
-      <label>语言 <input id="idx-language" type="text" placeholder="如 Python（留空=不限）" style="width:130px" /></label>
-      <label>最低星数 <input id="idx-min" type="number" min="0" step="1000" placeholder="如 20000" style="width:100px" /></label>
-      <label>最高星数 <input id="idx-max" type="number" min="0" step="1000" placeholder="不限" style="width:100px" /></label>
-      <label>关键词 <input id="idx-keyword" type="text" placeholder="名称/描述关键词" style="width:140px" /></label>
-      <button id="idx-add" class="btn btn-primary">创建指数</button>
-    </section>
-    <div id="idx-list" class="entity-list"></div>
-    <section class="list-header">
-      <h2 id="idx-detail-title">指数走势</h2>
-      <div class="lb-controls">
-        <label>天数 <select id="idx-days"><option value="30">近 30 天</option><option value="60" selected>近 60 天</option><option value="180">近 180 天</option></select></label>
-        <label>权重 <select id="idx-weight"><option value="equal">等权</option><option value="cap">星数加权</option></select></label>
-      </div>
-    </section>
-    <div id="idx-chart" class="chart-box"></div>
-    <div id="idx-members"></div>
-
-    <section class="list-header">
-      <h2>🌐 生态 / Topic 追踪</h2>
-      <span class="muted" style="font-size:12px">用 GitHub 搜索语法定义（如 <code>topic:llm</code>、<code>language:rust stars:&gt;20000</code>），刷新时自动抓取成员</span>
-    </section>
-    <section class="controls">
-      <label>名称 <input id="q-label" type="text" placeholder="例如：LLM 生态" /></label>
-      <label style="flex:1 1 320px">搜索语法 <input id="q-query" type="text" placeholder="topic:llm 或 language:rust stars:>20000" /></label>
-      <button id="q-add" class="btn btn-primary">添加追踪</button>
-      <button id="q-refresh" class="btn btn-secondary">立即刷新成员</button>
-      <span id="q-status" class="status"></span>
-    </section>
-    <div id="q-list" class="entity-list"></div>
-    <section class="list-header">
-      <h2 id="q-detail-title">生态走势</h2>
-      <div class="lb-controls">
-        <label>天数 <select id="q-days"><option value="30">近 30 天</option><option value="60" selected>近 60 天</option><option value="180">近 180 天</option></select></label>
-        <label>权重 <select id="q-weight"><option value="equal">等权</option><option value="cap">星数加权</option></select></label>
-      </div>
-    </section>
-    <div id="q-chart" class="chart-box"></div>
-    <div id="q-members"></div>
-  </section>
-
-  <!-- ===== 📉 全局趋势 ===== -->
-  <section id="tab-overview" class="tab-content">
-    <section class="list-header">
-      <h2>📉 全局趋势</h2>
-      <div class="lb-controls">
-        <label>时间范围
-          <select id="ov-days">
-            <option value="30">近 30 天</option>
-            <option value="60" selected>近 60 天</option>
-            <option value="180">近 180 天</option>
-            <option value="365">近一年</option>
-          </select>
-        </label>
-        <button id="ov-reload" class="btn btn-secondary">刷新</button>
-      </div>
-    </section>
-    <section class="stats" id="ov-health"></section>
-    <div class="chart-box"><h3 class="chart-title">每日新增星数热力图</h3><div id="ov-heatmap"></div></div>
-    <div class="chart-box"><h3 class="chart-title">每日总星数</h3><div id="ov-stars"></div></div>
-    <div class="chart-box"><h3 class="chart-title">每日快照活动</h3><div id="ov-activity"></div></div>
-    <div class="chart-box"><h3 class="chart-title">每日新收录</h3><div id="ov-discoveries"></div></div>
-    <div class="chart-box"><h3 class="chart-title">语言分布（Top 8）</h3><div id="ov-languages"></div></div>
-  </section>
-
-  <!-- ===== 📦 外部指标（P3）===== -->
-  <section id="tab-external" class="tab-content">
-    <section class="list-header">
-      <h2>📦 外部指标追踪</h2>
-      <div class="lb-controls">
-        <label>增速窗口
-          <select id="ext-window">
-            <option value="day">近24h</option>
-            <option value="week">近7天</option>
-            <option value="month">近30天</option>
-          </select>
-        </label>
-        <button id="add-metric-btn" class="btn btn-secondary">+ 添加指标</button>
-        <button id="refresh-metrics" class="btn btn-primary">刷新数据</button>
-      </div>
-    </section>
-    <div class="lb-notice">
-      追踪 GitHub 以外的公开指标：npm / PyPI / Docker Hub / crates.io 的下载量或拉取量。
-      与星标追踪使用同一套快照与增长引擎。
-    </div>
-    <div id="ext-list" class="ext-list"></div>
-  </section>
-
-  <!-- ===== 设置 ===== -->
-  <section id="tab-settings" class="tab-content">
-    <section class="settings-section">
-      <h2>⚙️ 基本设置</h2>
-      <div class="setting-row">
-        <label>最低星数 <input id="set-min-stars" type="number" min="0" /></label>
-        <label>增速下限 <input id="set-min-growth" type="number" min="0" /></label>
-      </div>
-      <div class="setting-row">
-        <label>快照保留天数 <input id="set-retention" type="number" min="7" max="365" /></label>
-        <label>告警阈值（日增星数）<input id="set-alert-threshold" type="number" min="0" /></label>
-      </div>
-      <div class="setting-row">
-        <label class="check-label"><input type="checkbox" id="set-alert-drop" /> 掉星告警</label>
-        <label>掉星阈值 <input id="set-drop-threshold" type="number" min="0" /></label>
-        <label class="check-label"><input type="checkbox" id="set-alert-milestone" /> 里程碑告警</label>
-      </div>
-      <div class="setting-row">
-        <label class="check-label"><input type="checkbox" id="set-digest-enabled" /> 每日摘要推送</label>
-        <label>摘要时间（HH:MM）<input id="set-digest-time" type="time" /></label>
-        <label class="check-label"><input type="checkbox" id="set-auto-backup" /> 每日自动备份</label>
-      </div>
-      <div class="setting-row">
-        <label>配额保护下限 <input id="set-quota-floor" type="number" min="0" value="3" title="剩余搜索配额低于此值时自动刷新会跳过" /></label>
-        <label>外部指标间隔(h) <input id="set-ext-interval" type="number" min="0" value="24" title="0 = 每轮都抓" /></label>
-        <label>快照降采样(天) <input id="set-rollup-days" type="number" min="0" value="30" title="超过该天数的快照压缩为每周一条；0 = 关闭" /></label>
-      </div>
-      <div class="setting-row">
-        <label>自动轮询间隔（分钟，0=关闭）<input id="set-auto-poll" type="number" min="0" max="1440" /></label>
-        <label>主题
-          <select id="set-theme">
-            <option value="dark">深色</option>
-            <option value="light">浅色</option>
-            <option value="contrast">高对比度</option>
-          </select>
-        </label>
-      </div>
-      <div class="setting-row">
-        <label style="flex:1 1 100%">自定义 GitHub 搜索语法（留空则用「最低星数」搜索）
-          <input id="set-search-query" type="text" placeholder="例如：language:rust stars:>1000 created:>2024-01-01" />
-        </label>
-      </div>
-      <button id="save-settings" class="btn btn-primary">保存设置</button>
-    </section>
-
-    <section class="settings-section">
-      <h2>🔗 访问控制</h2>
-      <p class="muted">若服务端设置了 <code>API_KEY</code> 环境变量，需要在此填写才能访问。</p>
-      <div class="setting-row">
-        <label style="flex:1 1 100%">API Key<input id="set-api-key" type="password" placeholder="留空表示服务端未启用认证" /></label>
-      </div>
-      <button id="save-api-key" class="btn btn-secondary">保存 API Key</button>
-      <span id="api-key-status" class="muted"></span>
-    </section>
-
-    <section class="settings-section">
-      <h2>🔔 告警通知</h2>
-      <p class="muted">当仓库 24h 新增达阈值、出现掉星或突破里程碑时触发。支持 Slack / Discord / Telegram / 飞书 / 钉钉 / ntfy / Bark / Server酱 / 通用 JSON。</p>
-      <div class="setting-row">
-        <label style="flex:1 1 100%">Webhook 地址<input id="set-webhook-url" type="text" placeholder="https://hooks.slack.com/services/..." /></label>
-      </div>
-      <div class="setting-row">
-        <label>Webhook 类型
-          <select id="set-webhook-type"></select>
-        </label>
-        <label>&nbsp;<button id="test-webhook" class="btn btn-secondary">发送测试通知</button></label>
-        <label>&nbsp;<button id="test-digest" class="btn btn-secondary">立即发送摘要</button></label>
-      </div>
-      <div id="alerts-preview" class="alerts-preview"></div>
-      <button id="clear-alerts" class="btn btn-secondary">清除已读告警</button>
-    </section>
-
-    <section class="settings-section">
-      <h2>📲 浏览器通知（Web Push）</h2>
-      <p class="muted">在浏览器/手机系统层面接收告警，无需第三方 Webhook（需 HTTPS 或 localhost）。</p>
-      <div class="setting-row">
-        <button id="push-enable" class="btn btn-secondary">启用浏览器通知</button>
-        <button id="push-disable" class="btn btn-secondary">取消订阅</button>
-        <button id="push-test" class="btn btn-secondary">发送测试推送</button>
-        <span id="push-status" class="muted"></span>
-      </div>
-    </section>
-
-    <section class="settings-section" id="account-section">
-      <h2>🔑 账号</h2>
-      <div class="setting-row">
-        <span id="account-who" class="muted"></span>
-        <label>新密码 <input id="my-new-pass" type="password" autocomplete="new-password" /></label>
-        <button id="change-pass-btn" class="btn btn-secondary">修改密码</button>
-        <button id="logout-btn" class="btn btn-secondary">退出登录</button>
-        <button id="enable-multiuser-btn" class="btn btn-secondary hidden" title="创建管理员账号并启用登录与数据隔离">启用多用户模式</button>
-      </div>
-    </section>
-
-    <section class="settings-section hidden" id="user-admin-section">
-      <h2>👥 用户管理</h2>
-      <p class="muted">多用户模式下每位成员的收藏、自定义仓库、指数、追踪、视图、告警阈值与推送订阅互相隔离。</p>
-      <div id="user-list" class="entity-list"></div>
-      <div class="setting-row">
-        <label>用户名 <input id="new-user-name" type="text" placeholder="2-40 位字母/数字/_-. " /></label>
-        <label>密码 <input id="new-user-pass" type="password" autocomplete="new-password" /></label>
-        <label>角色 <select id="new-user-role"><option value="member">成员</option><option value="admin">管理员</option></select></label>
-        <button id="add-user-btn" class="btn btn-secondary">添加用户</button>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h2>💾 数据维护</h2>
-      <div class="setting-row">
-        <button id="export-db" class="btn btn-secondary">导出备份 (.db)</button>
-        <button id="export-json" class="btn btn-secondary">导出 JSON</button>
-        <label class="btn btn-secondary" style="cursor:pointer">导入 JSON<input id="import-json" type="file" accept=".json,application/json" style="display:none" /></label>
-        <button id="cleanup-btn" class="btn btn-secondary">清理过期快照</button>
-      </div>
-    </section>
-  </section>
-
-  <!-- 详情弹窗 -->
-  <div id="detail-overlay" class="overlay hidden">
-    <div class="detail-modal" id="detail-modal">
-      <button class="detail-close" id="detail-close" aria-label="关闭">×</button>
-      <div id="detail-body"></div>
-    </div>
-  </div>
-
-  <!-- 添加自定义仓库弹窗 -->
-  <div id="custom-overlay" class="overlay hidden">
-    <div class="detail-modal" style="max-width:420px">
-      <button class="detail-close" id="custom-close" aria-label="关闭">×</button>
-      <h3>添加自定义仓库</h3>
-      <label>仓库地址 <input id="custom-name" type="text" placeholder="owner/repo，如 microsoft/vscode" /></label>
-      <label>备注（可选）<input id="custom-note" type="text" placeholder="例如：公司核心项目" /></label>
-      <div class="modal-actions">
-        <button id="custom-cancel" class="btn btn-secondary">取消</button>
-        <button id="custom-add" class="btn btn-primary">添加并追踪</button>
-      </div>
-      <div id="custom-error" class="error hidden"></div>
-    </div>
-  </div>
-
-  <!-- 添加外部指标弹窗 -->
-  <div id="metric-overlay" class="overlay hidden">
-    <div class="detail-modal" style="max-width:440px">
-      <button class="detail-close" id="metric-close" aria-label="关闭">×</button>
-      <h3>添加外部指标</h3>
-      <label>数据源
-        <select id="metric-source"></select>
-      </label>
-      <label>名称 <input id="metric-key" type="text" placeholder="选择数据源后显示提示" /></label>
-      <div class="modal-actions">
-        <button id="metric-cancel" class="btn btn-secondary">取消</button>
-        <button id="metric-add" class="btn btn-primary">添加并追踪</button>
-      </div>
-      <div id="metric-error" class="error hidden"></div>
-    </div>
-  </div>
-
-  <!-- 命令面板（⌘K）-->
-  <div id="palette-overlay" class="overlay hidden">
-    <div class="palette">
-      <input id="palette-input" type="text" autocomplete="off"
-        placeholder="搜索仓库、页面或动作…（↑↓ 选择 · Enter 执行 · Esc 关闭）" />
-      <div id="palette-list" class="palette-list"></div>
-    </div>
-  </div>
-
-  <!-- 登录 / 初始化管理员 -->
-  <div id="auth-overlay" class="overlay hidden">
-    <div class="detail-modal" style="max-width:380px">
-      <h3 id="auth-title">登录</h3>
-      <p id="auth-hint" class="muted" style="font-size:12px;margin:0 0 12px"></p>
-      <label>用户名 <input id="auth-username" type="text" autocomplete="username" /></label>
-      <label>密码 <input id="auth-password" type="password" autocomplete="current-password" /></label>
-      <div class="modal-actions">
-        <button id="auth-submit" class="btn btn-primary">登录</button>
-      </div>
-      <div id="auth-error" class="error hidden"></div>
-    </div>
-  </div>
-
-  <script src="/app.js"></script>
-</body>
+    <script src="/app.js"></script>
+  </body>
 </html>

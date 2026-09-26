@@ -360,6 +360,9 @@ https://your-host/api/feed/alerts.xml
 npm test            # 运行全部单元测试（含前端冒烟）
 npm run test:watch
 npm run test:frontend  # 只跑前端冒烟（真实 Chrome 无头，无 Chrome 自动跳过）
+npm run lint        # ESLint（eslint.config.js，已关闭与 Prettier 冲突的规则）
+npm run format:check  # Prettier 格式检查（CI 会跑）
+npm run format      # 一键格式化
 ```
 
 覆盖：增长计算、过滤/分页、排名变化、预测、数据库操作、告警规则、多渠道编码、回填、导入导出、保存视图，以及 `tests/api.test.js` 中的 HTTP 路由集成测试（真启动 Express + fetch）。

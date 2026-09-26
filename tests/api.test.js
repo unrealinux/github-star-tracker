@@ -29,12 +29,16 @@ const api = (path, opts = {}) =>
 
 before(async () => {
   db.exec("DELETE FROM snapshots; DELETE FROM favorites; DELETE FROM custom_repos; DELETE FROM repos;");
-  db.prepare("INSERT INTO repos (full_name, name, owner, url, description, language, stars, forks, open_issues, is_custom) VALUES (?,?,?,?,?,?,?,?,?,0)")
-    .run("api/one", "one", "api", "http://x", "A test repo", "Go", 1234, 10, 2);
-  db.prepare("INSERT INTO repos (full_name, name, owner, url, description, language, stars, forks, open_issues, is_custom) VALUES (?,?,?,?,?,?,?,?,?,0)")
-    .run("api/two", "two", "api", "http://y", "Another test repo", "Rust", 10, 1, 0);
+  db.prepare(
+    "INSERT INTO repos (full_name, name, owner, url, description, language, stars, forks, open_issues, is_custom) VALUES (?,?,?,?,?,?,?,?,?,0)",
+  ).run("api/one", "one", "api", "http://x", "A test repo", "Go", 1234, 10, 2);
+  db.prepare(
+    "INSERT INTO repos (full_name, name, owner, url, description, language, stars, forks, open_issues, is_custom) VALUES (?,?,?,?,?,?,?,?,?,0)",
+  ).run("api/two", "two", "api", "http://y", "Another test repo", "Rust", 10, 1, 0);
   const id1 = db.prepare("SELECT id FROM repos WHERE full_name = 'api/one'").get().id;
-  const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,?,?,?)");
+  const snap = db.prepare(
+    "INSERT INTO snapshots (repo_id, stars, forks, open_issues, captured_at) VALUES (?,?,?,?,?)",
+  );
   snap.run(id1, 1200, 10, 2, new Date(Date.now() - 2 * 86400000).toISOString());
   snap.run(id1, 1234, 10, 2, new Date().toISOString());
 
@@ -45,8 +49,12 @@ before(async () => {
 
 after(async () => {
   await new Promise((r) => server.close(r));
-  try { closeDb(); } catch {}
-  try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+  try {
+    closeDb();
+  } catch {}
+  try {
+    rmSync(tmp, { recursive: true, force: true });
+  } catch {}
 });
 
 describe("认证与基础端点", () => {
@@ -106,7 +114,11 @@ describe("列表与分析端点", () => {
     const ov = await (await api("/api/overview?days=30")).json();
     assert.equal(typeof ov.health.coveragePct, "number");
 
-    const ids = db.prepare("SELECT id FROM repos").all().map((r) => r.id).join(",");
+    const ids = db
+      .prepare("SELECT id FROM repos")
+      .all()
+      .map((r) => r.id)
+      .join(",");
     const cmp = await api(`/api/compare?ids=${ids}&window=day`);
     assert.equal(cmp.status, 200);
     assert.equal((await cmp.json()).repos.length, 2);
@@ -125,7 +137,8 @@ describe("列表与分析端点", () => {
 describe("保存视图 CRUD（C5）", () => {
   test("保存 / 列表 / 删除", async () => {
     const create = await api("/api/views", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Go 视图", filters: { language: "Go", sort: "growth" } }),
     });
     assert.equal(create.status, 200);
@@ -139,7 +152,8 @@ describe("保存视图 CRUD（C5）", () => {
     assert.equal((await del.json()).views.length, 0);
 
     const bad = await api("/api/views", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "", filters: {} }),
     });
     assert.equal(bad.status, 400);
@@ -149,14 +163,24 @@ describe("保存视图 CRUD（C5）", () => {
 describe("自定义仓库与维护端点", () => {
   test("新增/重复/删除自定义仓库", async () => {
     const payload = JSON.stringify({ full_name: "api/custom", note: "n" });
-    const create = await api("/api/custom-repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+    const create = await api("/api/custom-repos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
     assert.equal(create.status, 200);
 
-    const dup = await api("/api/custom-repos", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+    const dup = await api("/api/custom-repos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
     assert.equal(dup.status, 409);
 
     const bad = await api("/api/custom-repos", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full_name: "not-a-repo" }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ full_name: "not-a-repo" }),
     });
     assert.equal(bad.status, 400);
 
@@ -175,7 +199,8 @@ describe("自定义仓库与维护端点", () => {
 
   test("POST /api/maintenance/import 合并导入", async () => {
     const res = await api("/api/maintenance/import", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "merge", data: { settings: [{ key: "minStars", value: "2000" }] } }),
     });
     assert.equal(res.status, 200);
@@ -185,13 +210,15 @@ describe("自定义仓库与维护端点", () => {
   test("普通端点拒绝超大请求体，导入端点仍接受大体积", async () => {
     const huge = "x".repeat(300 * 1024);
     const tooBig = await api("/api/custom-repos", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ full_name: "big/repo", note: huge }),
     });
     assert.equal(tooBig.status, 413, "普通端点应拒绝超过 256kb 的请求体");
 
     const importBig = await api("/api/maintenance/import", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "merge", data: { settings: [{ key: "bigNote", value: huge }] } }),
     });
     assert.equal(importBig.status, 200, "导入端点应仍接受大体积");
@@ -333,7 +360,8 @@ describe("指数与生态端点（第三批）", () => {
     assert.ok(Array.isArray((await empty.json()).indices));
 
     const created = await api("/api/indices", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "API 指数", language: "Go", minStars: 100 }),
     });
     assert.equal(created.status, 200);
@@ -353,13 +381,15 @@ describe("指数与生态端点（第三批）", () => {
 
   test("追踪查询 CRUD 与聚合", async () => {
     const bad = await api("/api/queries", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: "", query: "" }),
     });
     assert.equal(bad.status, 400);
 
     const created = await api("/api/queries", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: "API 生态", query: "language:go stars:>100" }),
     });
     assert.equal(created.status, 200);
@@ -395,13 +425,22 @@ describe("运维健壮性端点（第四批）", () => {
     assert.ok("githubQuota" in body);
     // token 必须上报真实状态，而不是只说「有没有配置」
     assert.ok("tokenState" in body, "应暴露 tokenState");
-    assert.ok(["none", "unknown", "ok", "invalid"].includes(body.tokenState), `tokenState 取值非法：${body.tokenState}`);
+    assert.ok(
+      ["none", "unknown", "ok", "invalid"].includes(body.tokenState),
+      `tokenState 取值非法：${body.tokenState}`,
+    );
   });
 
   test("PUT /api/settings 接受运维类设置", async () => {
     const res = await api("/api/settings", {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quotaFloor: 5, externalIntervalHours: 6, rollupAfterDays: 14, sourceIntervals: { npm: 12 } }),
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quotaFloor: 5,
+        externalIntervalHours: 6,
+        rollupAfterDays: 14,
+        sourceIntervals: { npm: 12 },
+      }),
     });
     assert.equal(res.status, 200);
     const s = (await res.json()).settings;
@@ -413,7 +452,8 @@ describe("运维健壮性端点（第四批）", () => {
 
   test("GET /api/custom-repos 带 stale 字段", async () => {
     await api("/api/custom-repos", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ full_name: "ops/stale-check" }),
     });
     const body = await (await api("/api/custom-repos")).json();
@@ -473,7 +513,10 @@ describe("Web Push 端点（第六批）", () => {
   const clientKeys = () => {
     const ecdh = crypto.createECDH("prime256v1");
     ecdh.generateKeys();
-    return { p256dh: ecdh.getPublicKey().toString("base64url"), auth: crypto.randomBytes(16).toString("base64url") };
+    return {
+      p256dh: ecdh.getPublicKey().toString("base64url"),
+      auth: crypto.randomBytes(16).toString("base64url"),
+    };
   };
 
   test("GET /api/push/public-key 返回 65 字节公钥", async () => {
@@ -486,13 +529,15 @@ describe("Web Push 端点（第六批）", () => {
   test("订阅 → 列表 → 取消订阅", async () => {
     const keys = clientKeys();
     const bad = await api("/api/push/subscribe", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint: "https://push.example/x", keys: { p256dh: "bad", auth: "bad" } }),
     });
     assert.equal(bad.status, 400);
 
     const ok = await api("/api/push/subscribe", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint: "https://push.example/x", keys }),
     });
     assert.equal(ok.status, 200);
@@ -502,7 +547,8 @@ describe("Web Push 端点（第六批）", () => {
     assert.ok(list.subscriptions.some((s) => s.endpointHost === "push.example"));
 
     const del = await api("/api/push/unsubscribe", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint: "https://push.example/x" }),
     });
     assert.equal(del.status, 200);
@@ -511,9 +557,6 @@ describe("Web Push 端点（第六批）", () => {
   test("无订阅时测试推送返回 400", async () => {
     // 清空后再测
     const list = await (await api("/api/push/subscriptions")).json();
-    for (const s of list.subscriptions) {
-      // 通过 unsubscribe 需要 endpoint，这里直接再查一次（列表不返回 endpoint 明文）
-    }
     // 若无订阅则 400；有订阅时切换为成功路径
     const res = await api("/api/push/test", { method: "POST" });
     if (list.count === 0) {
@@ -525,19 +568,22 @@ describe("Web Push 端点（第六批）", () => {
 });
 
 describe("多用户：认证、权限与数据隔离（第七批）", () => {
-  let adminSession, memberSession, memberId;
+  let adminSession, memberSession;
 
   const asUser = (session, path, opts = {}) =>
     fetch(base + path, {
       ...opts,
-      headers: { ...(opts.body ? { "Content-Type": "application/json" } : {}), "X-Session": session, ...(opts.headers || {}) },
+      headers: {
+        ...(opts.body ? { "Content-Type": "application/json" } : {}),
+        "X-Session": session,
+        ...(opts.headers || {}),
+      },
     });
-  const jsonUser = (session, path, opts = {}) =>
-    asUser(session, path, { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) } });
 
   test("注册首个用户成为管理员并返回会话", async () => {
     const res = await fetch(base + "/api/auth/register", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "alice", password: "secret123" }),
     });
     assert.equal(res.status, 200);
@@ -554,25 +600,29 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
 
   test("重复注册被拒绝，密码过短被拒绝", async () => {
     const dup = await fetch(base + "/api/auth/register", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "bob", password: "secret123" }),
     });
     assert.equal(dup.status, 409);
     const weak = await asUser(adminSession, "/api/auth/users", {
-      method: "POST", body: JSON.stringify({ username: "weak", password: "123" }),
+      method: "POST",
+      body: JSON.stringify({ username: "weak", password: "123" }),
     });
     assert.equal(weak.status, 400);
   });
 
   test("登录：密码错误 401，正确返回会话", async () => {
     const bad = await fetch(base + "/api/auth/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "alice", password: "wrong" }),
     });
     assert.equal(bad.status, 401);
 
     const ok = await fetch(base + "/api/auth/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "alice", password: "secret123" }),
     });
     assert.equal(ok.status, 200);
@@ -587,33 +637,50 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
 
   test("管理员可创建成员，成员无权管理用户", async () => {
     const created = await asUser(adminSession, "/api/auth/users", {
-      method: "POST", body: JSON.stringify({ username: "bob", password: "bobpass123", role: "member" }),
+      method: "POST",
+      body: JSON.stringify({ username: "bob", password: "bobpass123", role: "member" }),
     });
     assert.equal(created.status, 200);
-    memberId = (await created.json()).id;
 
     const login = await fetch(base + "/api/auth/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "bob", password: "bobpass123" }),
     });
     memberSession = (await login.json()).session;
 
     const forbidden = await asUser(memberSession, "/api/auth/users", {
-      method: "POST", body: JSON.stringify({ username: "eve", password: "evepass123" }),
+      method: "POST",
+      body: JSON.stringify({ username: "eve", password: "evepass123" }),
     });
     assert.equal(forbidden.status, 403);
   });
 
   test("数据按用户隔离（自定义仓库 / 视图 / 指数 / 追踪 / 收藏）", async () => {
     // alice 写入
-    await asUser(adminSession, "/api/custom-repos", { method: "POST", body: JSON.stringify({ full_name: "iso/alice-only" }) });
-    await asUser(adminSession, "/api/views", { method: "POST", body: JSON.stringify({ name: "alice-view", filters: { language: "Go" } }) });
-    await asUser(adminSession, "/api/indices", { method: "POST", body: JSON.stringify({ name: "alice-index", language: "Go" }) });
-    await asUser(adminSession, "/api/queries", { method: "POST", body: JSON.stringify({ label: "alice-eco", query: "language:go" }) });
+    await asUser(adminSession, "/api/custom-repos", {
+      method: "POST",
+      body: JSON.stringify({ full_name: "iso/alice-only" }),
+    });
+    await asUser(adminSession, "/api/views", {
+      method: "POST",
+      body: JSON.stringify({ name: "alice-view", filters: { language: "Go" } }),
+    });
+    await asUser(adminSession, "/api/indices", {
+      method: "POST",
+      body: JSON.stringify({ name: "alice-index", language: "Go" }),
+    });
+    await asUser(adminSession, "/api/queries", {
+      method: "POST",
+      body: JSON.stringify({ label: "alice-eco", query: "language:go" }),
+    });
 
     // bob 看不到
     const bCustom = await (await asUser(memberSession, "/api/custom-repos")).json();
-    assert.ok(!bCustom.repos.some((r) => r.full_name === "iso/alice-only"), "bob 不应看到 alice 的自定义仓库");
+    assert.ok(
+      !bCustom.repos.some((r) => r.full_name === "iso/alice-only"),
+      "bob 不应看到 alice 的自定义仓库",
+    );
     const bViews = await (await asUser(memberSession, "/api/views")).json();
     assert.ok(!bViews.views.some((v) => v.name === "alice-view"));
     const bIndices = await (await asUser(memberSession, "/api/indices")).json();
@@ -622,7 +689,10 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
     assert.ok(!bQueries.queries.some((q) => q.label === "alice-eco"));
 
     // bob 写入自己的，alice 也看不到
-    await asUser(memberSession, "/api/custom-repos", { method: "POST", body: JSON.stringify({ full_name: "iso/bob-only" }) });
+    await asUser(memberSession, "/api/custom-repos", {
+      method: "POST",
+      body: JSON.stringify({ full_name: "iso/bob-only" }),
+    });
     const aCustom = await (await asUser(adminSession, "/api/custom-repos")).json();
     assert.ok(aCustom.repos.some((r) => r.full_name === "iso/alice-only"));
     assert.ok(!aCustom.repos.some((r) => r.full_name === "iso/bob-only"));
@@ -633,21 +703,27 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
     assert.equal((await asUser(memberSession, `/api/indices/${aliceIndexId}/series`)).status, 404);
 
     // 同名资源互不冲突
-    const sameName = await asUser(memberSession, "/api/indices", { method: "POST", body: JSON.stringify({ name: "alice-index", language: "Rust" }) });
+    const sameName = await asUser(memberSession, "/api/indices", {
+      method: "POST",
+      body: JSON.stringify({ name: "alice-index", language: "Rust" }),
+    });
     assert.equal(sameName.status, 200, "不同用户可使用同名指数");
   });
 
   test("收藏与告警按用户隔离", async () => {
     const repoId = db.prepare("SELECT id FROM repos LIMIT 1").get().id;
-    const t1 = await (await asUser(adminSession, `/api/favorites/${repoId}/toggle`, { method: "POST" })).json();
+    const t1 = await (
+      await asUser(adminSession, `/api/favorites/${repoId}/toggle`, { method: "POST" })
+    ).json();
     assert.equal(t1.added, true);
     const aFav = await (await asUser(adminSession, "/api/favorites")).json();
     const bFav = await (await asUser(memberSession, "/api/favorites")).json();
     assert.ok(aFav.repos.some((r) => r.id === repoId));
     assert.ok(!bFav.repos.some((r) => r.id === repoId), "bob 不应看到 alice 的收藏");
 
-    db.prepare("INSERT INTO alerts (repo_id, threshold, growth, current_stars, kind, user_id) VALUES (?,?,?,?,?,?)")
-      .run(repoId, 10, 99, 5000, "growth", 1);
+    db.prepare(
+      "INSERT INTO alerts (repo_id, threshold, growth, current_stars, kind, user_id) VALUES (?,?,?,?,?,?)",
+    ).run(repoId, 10, 99, 5000, "growth", 1);
     const aAlerts = await (await asUser(adminSession, "/api/alerts")).json();
     const bAlerts = await (await asUser(memberSession, "/api/alerts")).json();
     assert.ok(aAlerts.unread >= 1);
@@ -656,8 +732,9 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
 
   test("Atom 告警订阅按用户隔离（取自己的告警，而非全局 user 0）", async () => {
     const repoId = db.prepare("SELECT id FROM repos LIMIT 1").get().id;
-    db.prepare("INSERT INTO alerts (repo_id, threshold, growth, current_stars, kind, user_id) VALUES (?,?,?,?,?,?)")
-      .run(repoId, 10, 77, 6000, "growth", 1);
+    db.prepare(
+      "INSERT INTO alerts (repo_id, threshold, growth, current_stars, kind, user_id) VALUES (?,?,?,?,?,?)",
+    ).run(repoId, 10, 77, 6000, "growth", 1);
     const aFeed = await (await asUser(adminSession, "/api/feed/alerts.xml")).text();
     const bFeed = await (await asUser(memberSession, "/api/feed/alerts.xml")).text();
     assert.match(aFeed, /\+77 星/, "alice 的订阅应包含自己的告警");
@@ -667,8 +744,14 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
   test("推送订阅按用户隔离", async () => {
     const ecdh = crypto.createECDH("prime256v1");
     ecdh.generateKeys();
-    const keys = { p256dh: ecdh.getPublicKey().toString("base64url"), auth: crypto.randomBytes(16).toString("base64url") };
-    await asUser(adminSession, "/api/push/subscribe", { method: "POST", body: JSON.stringify({ endpoint: "https://push.example/alice", keys }) });
+    const keys = {
+      p256dh: ecdh.getPublicKey().toString("base64url"),
+      auth: crypto.randomBytes(16).toString("base64url"),
+    };
+    await asUser(adminSession, "/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ endpoint: "https://push.example/alice", keys }),
+    });
     const a = await (await asUser(adminSession, "/api/push/subscriptions")).json();
     const b = await (await asUser(memberSession, "/api/push/subscriptions")).json();
     assert.ok(a.count >= 1);
@@ -677,14 +760,16 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
 
   test("修改密码后旧会话失效", async () => {
     const changed = await fetch(base + "/api/auth/password", {
-      method: "PUT", headers: { "Content-Type": "application/json", "X-Session": memberSession },
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-Session": memberSession },
       body: JSON.stringify({ password: "newpass456" }),
     });
     assert.equal(changed.status, 200);
     assert.equal((await asUser(memberSession, "/api/views")).status, 401);
 
     const relogin = await fetch(base + "/api/auth/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: "bob", password: "newpass456" }),
     });
     assert.equal(relogin.status, 200);
@@ -708,7 +793,8 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
     let sawTooMany = false;
     for (let i = 0; i < 15 && !sawTooMany; i++) {
       const res = await fetch(base + "/api/auth/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: "alice", password: "definitely-wrong" }),
       });
       if (res.status === 429) {
@@ -725,13 +811,17 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
 describe("token 环境变量解析（第八批）", () => {
   test("优先用 GITHUB_TOKEN", () => {
     assert.deepEqual(resolveToken({ GITHUB_TOKEN: "ghp_a", GH_TOKEN: "gho_b" }), {
-      token: "ghp_a", source: "GITHUB_TOKEN",
+      token: "ghp_a",
+      source: "GITHUB_TOKEN",
     });
   });
 
   test("GITHUB_TOKEN 为空/缺失时回退 GH_TOKEN（可直接用 gh auth token 提供）", () => {
     assert.deepEqual(resolveToken({ GH_TOKEN: "gho_b" }), { token: "gho_b", source: "GH_TOKEN" });
-    assert.deepEqual(resolveToken({ GITHUB_TOKEN: "", GH_TOKEN: "gho_b" }), { token: "gho_b", source: "GH_TOKEN" });
+    assert.deepEqual(resolveToken({ GITHUB_TOKEN: "", GH_TOKEN: "gho_b" }), {
+      token: "gho_b",
+      source: "GH_TOKEN",
+    });
   });
 
   test("两者都为空时返回空 token 与 null 来源（判定为匿名模式）", () => {
