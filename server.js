@@ -82,6 +82,8 @@ export function resolveToken(env = process.env) {
 
 const { token: TOKEN, source: TOKEN_SOURCE } = resolveToken();
 const API_KEY   = process.env.API_KEY || "";
+// 只读订阅令牌：可安全地写进 RSS URL，权限仅限 /api/feed/*，不暴露主 API Key
+const FEED_TOKEN = process.env.FEED_TOKEN || "";
 const DEFAULT_MIN_STARS = 1000;
 const DEFAULT_MIN_GROWTH = 0;
 const CRON      = process.env.CRON_SCHEDULE || "0 9 * * *";
@@ -113,7 +115,8 @@ function issueSession(userId, req) {
 }
 
 function resolveAuth(req, res, next) {
-  const token = req.get("X-Session") || req.query.session || "";
+  // 只认请求头，避免 token 经由 URL 泄漏进日志 / Referer / 浏览器历史
+  const token = req.get("X-Session") || "";
   if (token) {
     const s = getSession(token);
     if (s) {
@@ -123,9 +126,19 @@ function resolveAuth(req, res, next) {
     }
   }
 
-  // 配置了 API_KEY 时维持原有语义：除认证接口外都必须带正确 Key
+  // RSS / Atom 只读令牌：能写进订阅 URL，且仅解锁 /api/feed/*，不会泄露主 API Key
+  if (FEED_TOKEN && req.path.startsWith("/feed")) {
+    const ft = req.get("X-Feed-Token") || req.query.token || "";
+    if (ft && ft === FEED_TOKEN) {
+      req.userId = 0;
+      req.user = { id: 0, username: "feed", role: "viewer" };
+      return next();
+    }
+  }
+
+  // 配置了 API_KEY 时维持原有语义：除认证接口外都必须带正确 Key（只认请求头）
   if (API_KEY) {
-    const key = req.get("X-API-Key") || req.query.key || "";
+    const key = req.get("X-API-Key") || "";
     if (key && key === API_KEY) {
       req.userId = 0;
       req.user = { id: 0, username: "api-key", role: "admin" };
@@ -199,14 +212,17 @@ app.get("/metrics", (_req, res) => {
 
 // ── P2-9: 简易速率限制（针对消耗 GitHub 配额的端点）────────────────
 const rateBuckets = new Map();
-function rateLimit({ windowMs = 60_000, max = 6 } = {}) {
+let rateLimitSeq = 0;
+function rateLimit({ windowMs = 60_000, max = 6, name } = {}) {
+  // 每个限流器独立分桶：否则同一 IP 在不同端点之间会互相挤占额度
+  const bucket = name || `rl-${++rateLimitSeq}`;
   return (req, res, next) => {
-    const ip = req.ip || "unknown";
+    const key = `${bucket}:${req.ip || "unknown"}`;
     const now = Date.now();
-    const b = rateBuckets.get(ip) || { count: 0, reset: now + windowMs };
+    const b = rateBuckets.get(key) || { count: 0, reset: now + windowMs };
     if (now > b.reset) { b.count = 0; b.reset = now + windowMs; }
     b.count++;
-    rateBuckets.set(ip, b);
+    rateBuckets.set(key, b);
     if (b.count > max) {
       const retry = Math.ceil((b.reset - now) / 1000);
       res.setHeader("Retry-After", String(retry));
@@ -218,7 +234,7 @@ function rateLimit({ windowMs = 60_000, max = 6 } = {}) {
 // 定期清理空桶
 setInterval(() => {
   const now = Date.now();
-  for (const [ip, b] of rateBuckets) if (now > b.reset) rateBuckets.delete(ip);
+  for (const [key, b] of rateBuckets) if (now > b.reset) rateBuckets.delete(key);
 }, 60_000).unref();
 
 // 所有 /api 先解析身份
@@ -238,7 +254,7 @@ app.get("/api/auth/status", (req, res) => {
   });
 });
 
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", rateLimit({ windowMs: 60_000, max: 5, name: "auth-register" }), (req, res) => {
   if (countUsers() > 0) return res.status(409).json({ error: "已存在用户，请让管理员创建账号" });
   const { username, password } = req.body || {};
   try {
@@ -252,7 +268,7 @@ app.post("/api/auth/register", (req, res) => {
   }
 });
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", rateLimit({ windowMs: 60_000, max: 10, name: "auth-login" }), (req, res) => {
   const { username, password } = req.body || {};
   const user = getUserByName(username);
   if (!user || !verifyPassword(password, user.password_hash)) {
@@ -930,7 +946,7 @@ app.get("/spark/:owner/:name", (req, res) => {
   res.send(renderSparkline(data.values, { width: toNum(req.query.w, 120), height: toNum(req.query.h, 32) }));
 });
 
-// ── RSS / Atom 订阅（/api 下，支持 ?key= 认证）─────────────────
+// ── RSS / Atom 订阅（/api 下，可用 FEED_TOKEN 走 ?token= 认证）───────
 const xmlEscape = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({
   "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;",
 }[c]));

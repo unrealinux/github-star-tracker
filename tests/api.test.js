@@ -14,6 +14,7 @@ const tmp = mkdtempSync(join(tmpdir(), "gst-api-"));
 process.env.DB_DIR = tmp;
 process.env.DB_PATH = join(tmp, "api.db");
 process.env.API_KEY = "test-key-123";
+process.env.FEED_TOKEN = "feed-token-abc";
 process.env.LOG_LEVEL = "error";
 
 const { app, resolveToken } = await import("../server.js");
@@ -231,6 +232,21 @@ describe("信号与订阅端点（第一批）", () => {
       assert.match(text, /<\/feed>/);
     }
     assert.equal((await api("/api/feed/bogus.xml")).status, 404);
+  });
+
+  test("RSS 订阅用只读 FEED_TOKEN；主 API Key 不再接受查询参数", async () => {
+    const FEED = process.env.FEED_TOKEN;
+    // 主 API Key 走 URL 一律拒绝
+    assert.equal((await fetch(base + "/api/repos?key=" + KEY)).status, 401, "?key= 不应再被接受");
+    assert.equal((await fetch(base + "/api/feed/surges.xml?key=" + KEY)).status, 401, "订阅也不接受 ?key=");
+
+    // 只读令牌可读订阅
+    const ok = await fetch(base + "/api/feed/surges.xml?token=" + encodeURIComponent(FEED));
+    assert.equal(ok.status, 200);
+    assert.match(await ok.text(), /<feed/);
+
+    // 令牌只能读订阅，不能调其它接口
+    assert.equal((await fetch(base + "/api/repos?token=" + encodeURIComponent(FEED))).status, 401);
   });
 
   test("GET /spark/:owner/:name.svg 返回走势图 SVG", async () => {
@@ -652,6 +668,30 @@ describe("多用户：认证、权限与数据隔离（第七批）", () => {
     const me = users.users.find((u) => u.username === "alice");
     const res = await asUser(adminSession, `/api/auth/users/${me.id}`, { method: "DELETE" });
     assert.equal(res.status, 400);
+  });
+
+  test("会话令牌不接受查询参数（防泄漏进日志 / Referer）", async () => {
+    const viaQuery = await fetch(base + `/api/repos?session=${encodeURIComponent(adminSession)}`);
+    assert.equal(viaQuery.status, 401, "URL 里的 session 不应被接受");
+    const viaHeader = await asUser(adminSession, "/api/repos");
+    assert.equal(viaHeader.status, 200, "请求头里的 session 仍应有效");
+  });
+
+  test("登录接口有速率限制（防暴力破解）", async () => {
+    let sawTooMany = false;
+    for (let i = 0; i < 15 && !sawTooMany; i++) {
+      const res = await fetch(base + "/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "alice", password: "definitely-wrong" }),
+      });
+      if (res.status === 429) {
+        sawTooMany = true;
+        assert.ok(Number(res.headers.get("retry-after")) > 0, "应带 Retry-After");
+      } else {
+        assert.equal(res.status, 401);
+      }
+    }
+    assert.ok(sawTooMany, "连续失败登录应触发 429");
   });
 });
 

@@ -1657,13 +1657,32 @@ on("test-webhook", "click", async (e) => {
   } catch (err) { showError("发送失败: " + err.message); }
   finally { btn.disabled = false; }
 });
-on("export-db", "click", () => {
+async function downloadWithAuth(url, filename) {
+  const headers = {};
   const key = getApiKey();
-  window.open(`/api/maintenance/export${key ? `?key=${encodeURIComponent(key)}` : ""}`, "_blank");
+  if (key) headers["X-API-Key"] = key;
+  const session = getSession();
+  if (session) headers["X-Session"] = session;
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`下载失败（${res.status}）`);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+on("export-db", "click", async () => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  try { await downloadWithAuth("/api/maintenance/export", `github-star-tracker-backup-${stamp}.db`); }
+  catch (err) { showError(err.message); }
 });
-on("export-json", "click", () => {
-  const key = getApiKey();
-  window.open(`/api/maintenance/export?format=json${key ? `&key=${encodeURIComponent(key)}` : ""}`, "_blank");
+on("export-json", "click", async () => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  try { await downloadWithAuth("/api/maintenance/export?format=json", `github-star-tracker-export-${stamp}.json`); }
+  catch (err) { showError(err.message); }
 });
 on("import-json", "change", async (e) => {
   const file = e.target.files?.[0];

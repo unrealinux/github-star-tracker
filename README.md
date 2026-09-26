@@ -112,6 +112,7 @@ npm start
 | `PORT` | 服务端口 | `3001` |
 | `CRON_SCHEDULE` | 定时抓取的 cron 表达式 | `0 9 * * *`（每天 9:00） |
 | `API_KEY` | 若设置，则所有 `/api/*` 需要该密钥 | 空（不启用认证） |
+| `FEED_TOKEN` | 只读订阅令牌，用于 RSS URL（`?token=`），权限仅限 `/api/feed/*` | 空 |
 | `TRUST_PROXY` | 反代部署时设为 `true` 或 `loopback`，使限流/日志取到真实 IP | 空（关闭） |
 | `VAPID_SUBJECT` | Web Push 的 VAPID `sub` 字段（一般为 `mailto:you@example.com`）| `mailto:admin@example.com` |
 | `LOG_LEVEL` | 日志级别：`debug`/`info`/`warn`/`error` | `info` |
@@ -316,8 +317,8 @@ docker run -d -p 3001:3001 \
 | POST | `/api/maintenance/import` | ✓ | 导入 JSON（`mode=merge\|replace`）|
 
 认证方式（按优先级）：
-1. **会话**：请求头 `X-Session: <token>` 或查询参数 `?session=<token>`
-2. **API Key**：请求头 `X-API-Key: <key>` 或 `?key=<key>`（视为管理员，适合自动化）
+1. **会话**：请求头 `X-Session: <token>`（不接受查询参数，避免 token 进日志）
+2. **API Key**：请求头 `X-API-Key: <key>`（视为管理员，适合自动化；不接受查询参数）
 3. **单用户模式**：未创建任何用户时，`/api` 直接放行（与早期版本行为一致）
 
 > 若配置了 `API_KEY`，即使未创建用户也仍需携带 Key（保持原有安全语义）。
@@ -340,13 +341,16 @@ docker run -d -p 3001:3001 \
 ![stars](https://img.shields.io/endpoint?url=https://your-host/badge/vitejs/vite.json)
 ```
 
-RSS 阅读器订阅（若启用了 `API_KEY`，需在 URL 加 `?key=`）：
+RSS 阅读器订阅：
 
 ```
 https://your-host/api/feed/surges.xml
 https://your-host/api/feed/new.xml
 https://your-host/api/feed/alerts.xml
 ```
+
+若启用了 `API_KEY`，RSS 阅读器无法携带请求头，需另设 `FEED_TOKEN`，再在 URL 加 `?token=<FEED_TOKEN>`。
+该令牌只能读订阅、不能调其它接口，即使出现在 URL / 日志里也不会泄露主 API Key。
 
 ## 🧪 测试
 
