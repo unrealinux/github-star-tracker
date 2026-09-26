@@ -28,7 +28,7 @@ process.env.API_KEY = "";
 process.env.FEED_TOKEN = "";
 process.env.LOG_LEVEL = "error";
 
-const { app } = await import("../server.js");
+const { app } = await import("../../server.js");
 
 // ── 定位 Chrome ──────────────────────────────────────────────────
 function findChrome() {
@@ -86,6 +86,8 @@ class CDP {
   }
 }
 
+const spawnedChrome = [];
+
 async function launchChrome() {
   const userDataDir = mkdtempSync(join(tmpdir(), "gst-chrome-"));
   const proc = spawn(
@@ -106,34 +108,59 @@ async function launchChrome() {
     ],
     { stdio: ["ignore", "ignore", "pipe"], detached: true },
   );
+  const entry = { proc, userDataDir };
+  spawnedChrome.push(entry);
 
-  const wsUrl = await new Promise((resolve, reject) => {
-    let buf = "";
-    const timer = setTimeout(() => reject(new Error("Chrome 未在 15s 内就绪")), 15000);
-    proc.stderr.on("data", (d) => {
-      buf += d.toString();
-      const m = buf.match(/DevTools listening on (ws:\/\/\S+)/);
-      if (m) {
+  try {
+    const wsUrl = await new Promise((resolve, reject) => {
+      let buf = "";
+      const timer = setTimeout(() => reject(new Error("Chrome 未在 30s 内就绪")), 30000);
+      proc.stderr.on("data", (d) => {
+        buf += d.toString();
+        const m = buf.match(/DevTools listening on (ws:\/\/\S+)/);
+        if (m) {
+          clearTimeout(timer);
+          resolve(m[1]);
+        }
+      });
+      proc.on("exit", (code) => {
         clearTimeout(timer);
-        resolve(m[1]);
-      }
+        reject(new Error(`Chrome 提前退出，code=${code}`));
+      });
     });
-    proc.on("exit", (code) => {
-      clearTimeout(timer);
-      reject(new Error(`Chrome 提前退出，code=${code}`));
-    });
-  });
 
-  const port = new URL(wsUrl).port;
-  const target = await (
-    await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })
-  ).json();
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((res, rej) => {
-    ws.addEventListener("open", res, { once: true });
-    ws.addEventListener("error", rej, { once: true });
-  });
-  return { proc, ws, cdp: new CDP(ws), userDataDir };
+    const port = new URL(wsUrl).port;
+    const target = await (
+      await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" })
+    ).json();
+    const ws = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((res, rej) => {
+      ws.addEventListener("open", res, { once: true });
+      ws.addEventListener("error", rej, { once: true });
+    });
+    return { ...entry, ws, cdp: new CDP(ws) };
+  } catch (err) {
+    killChrome(entry);
+    throw err;
+  }
+}
+
+// 回收 Chrome 进程组 + 临时目录；启动失败或测试异常都要调用，否则孤儿进程会拖住测试进程
+function killChrome({ proc, userDataDir }) {
+  try {
+    process.kill(-proc.pid, "SIGKILL");
+  } catch {
+    try {
+      proc.kill("SIGKILL");
+    } catch {
+      /* 已退出 */
+    }
+  }
+  try {
+    rmSync(userDataDir, { recursive: true, force: true });
+  } catch {
+    /* 忽略 */
+  }
 }
 
 async function closeChrome(browser) {
@@ -142,20 +169,7 @@ async function closeChrome(browser) {
   } catch {
     /* 已关闭 */
   }
-  try {
-    process.kill(-browser.proc.pid, "SIGKILL");
-  } catch {
-    try {
-      browser.proc.kill("SIGKILL");
-    } catch {
-      /* 已退出 */
-    }
-  }
-  try {
-    rmSync(browser.userDataDir, { recursive: true, force: true });
-  } catch {
-    /* 忽略 */
-  }
+  killChrome(browser);
 }
 
 // ── 服务器 + 浏览器生命周期 ─────────────────────────────────────
@@ -172,6 +186,8 @@ before(async () => {
 
 after(async () => {
   if (browser) await closeChrome(browser);
+  // 启动阶段失败时 browser 还没赋上，这里兼底回收所有拉起过的 Chrome
+  for (const entry of spawnedChrome) killChrome(entry);
   if (server) {
     server.closeAllConnections?.();
     await new Promise((r) => server.close(r));

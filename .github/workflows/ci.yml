@@ -119,4 +119,4 @@ jobs:
       - name: 前端冒烟测试
         env:
           CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
-        run: node --test tests/frontend.test.js
+        run: node --test tests/frontend/smoke.test.js
