@@ -26,7 +26,7 @@ npm test               # SQLite
 npm run test:postgres  # PostgreSQL（内嵌 PGlite，无需服务器）
 ```
 
-**完成标准**：两次都是 `# fail 0`，且两边的 `# tests` **数字相同**（当前为 206）。
+**完成标准**：两次都是 `# fail 0`，且两边的 `# tests` **数字相同**（当前为 207）。
 数字不同或有一边失败，就说明存在后端相关差异，先解决它再继续。
 
 ---
@@ -82,10 +82,11 @@ node --test tests/migration.test.js   # 旧库升级；内部子进程固定走 
 node --test tests/pg_migration.test.js # PG 迁移；用内嵌 PGlite，不需要外部 PG
 node --test tests/driver.test.js      # 驱动报错；用内嵌 PGlite，不需要外部 PG
 node --test tests/github.test.js      # GitHub API 封装；纯单元测试
+node --test tests/frontend.test.js    # 前端冒烟；强制 SQLite + 真实 Chrome，无 Chrome 则跳过
 ```
 
 **完成标准**：全部文件都是 `# fail 0`（只有 `core.test.js` 与 `api.test.js` 真正打到外部 PostgreSQL），
-且所有文件用例数**之和**与 Step 1 的总数一致（当前 206）。
+且所有文件用例数**之和**与 Step 1 的总数一致（当前 207）。
 任一边红，就是真实 PostgreSQL 上的真问题——此时错误信息应能直接定位（见「已知坑」第 2 条）。
 
 ---
@@ -260,7 +261,7 @@ diff -rq /tmp/cmp-lite /tmp/cmp-pg
 
 ## 本清单**不**覆盖
 
-- 前端在浏览器中的实际行为（只验到静态资源可达与服务可启动）。
+- 前端在浏览器中的**完整**行为（`tests/frontend.test.js` 只做冒烟：能打开、无报错、无 CSP 违规；不覆盖交互流程）。
 - 真实 PostgreSQL 的**版本差异**：这里只跑了 `postgres:16-alpine`。其它大版本请各跑一次 Step 3。
 - SSL、PG 角色/权限模型、多连接并发：`DATABASE_URL` 里的 `sslmode` 与受限角色未验证。
 - `pg_dump` / 备份恢复链路。

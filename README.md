@@ -357,11 +357,14 @@ https://your-host/api/feed/alerts.xml
 ## 🧪 测试
 
 ```bash
-npm test          # 运行全部单元测试
+npm test            # 运行全部单元测试（含前端冒烟）
 npm run test:watch
+npm run test:frontend  # 只跑前端冒烟（真实 Chrome 无头，无 Chrome 自动跳过）
 ```
 
 覆盖：增长计算、过滤/分页、排名变化、预测、数据库操作、告警规则、多渠道编码、回填、导入导出、保存视图，以及 `tests/api.test.js` 中的 HTTP 路由集成测试（真启动 Express + fetch）。
+
+`tests/frontend.test.js` 是前端冒烟：用真实 Chrome 无头 + 原生 CDP（零依赖）加载页面，断言 `app.js` 真的跑起来、且没有 JS 异常 / CSP 违规 / 资源加载失败。它不会跑 `npm test` 时因无 Chrome 而失败（自动跳过）；CI 有独立作业用 `browser-actions/setup-chrome` 装上 Chrome 真跑。
 
 要在真实 PostgreSQL 上验证（起库、每文件独立库、迁移后两端对拍、预期差异与已知坑）：见 [`docs/verification-checklist.md`](docs/verification-checklist.md)。
 

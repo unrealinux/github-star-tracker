@@ -89,3 +89,28 @@ jobs:
           DB_DRIVER: postgres
           DATABASE_URL: postgres://gst:gst@127.0.0.1:5432/gst_api
         run: node --test tests/api.test.js
+
+  # 前端冒烟：真实 Chrome 无头加载页面，断言无 JS 异常 / CSP 违规 / 资源失败
+  frontend:
+    name: 前端冒烟（Chrome）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      - name: 前端冒烟测试
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+        run: node --test tests/frontend.test.js
