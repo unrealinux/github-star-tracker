@@ -39,3 +39,53 @@ jobs:
 
       - name: 测试（PostgreSQL / 内嵌 PGlite）
         run: npm run test:postgres
+
+  # 真实 PostgreSQL：验证清单说「判定以真实 PostgreSQL 为准」，
+  # 内嵌 PGlite 只覆盖 mode==="pg" 的部分分支，这里补上真实 pg 驱动。
+  postgres:
+    name: 真实 PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gst
+          POSTGRES_PASSWORD: gst
+          POSTGRES_DB: gst
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gst -d gst"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      # core 与 api 各自在 before() 里做破坏性重置，必须用独立库，否则互相污染
+      - name: 创建两个独立测试库
+        env:
+          PGPASSWORD: gst
+        run: |
+          psql -h 127.0.0.1 -U gst -d gst -v ON_ERROR_STOP=1 -c "CREATE DATABASE gst_core;"
+          psql -h 127.0.0.1 -U gst -d gst -v ON_ERROR_STOP=1 -c "CREATE DATABASE gst_api;"
+
+      - name: 核心测试（真实 PostgreSQL）
+        env:
+          DB_DRIVER: postgres
+          DATABASE_URL: postgres://gst:gst@127.0.0.1:5432/gst_core
+        run: node --test tests/core.test.js
+
+      - name: HTTP 集成测试（真实 PostgreSQL）
+        env:
+          DB_DRIVER: postgres
+          DATABASE_URL: postgres://gst:gst@127.0.0.1:5432/gst_api
+        run: node --test tests/api.test.js

@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "node:crypto";
 import cron from "node-cron";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
@@ -138,6 +139,12 @@ const toMetric = (v) => (METRIC_KEYS.includes(v) ? v : "stars");
 // 解析顺序：会话令牌 → API Key（自动化/管理员）→ 无用户时的单用户模式
 const AUTH_OPEN_PATHS = new Set(["/auth/status", "/auth/login", "/auth/register", "/auth/logout"]);
 
+// 常量时间比较密钥，避免通过响应时间逐字节猜出正确值（长度经 SHA-256 归一）
+function safeEqual(a, b) {
+  const h = (v) => crypto.createHash("sha256").update(String(v)).digest();
+  return crypto.timingSafeEqual(h(a), h(b));
+}
+
 function issueSession(userId, req) {
   const token = newSessionToken();
   createSession({ token, userId, expiresAt: new Date(Date.now() + SESSION_TTL_MS).toISOString(), userAgent: req.get("user-agent") });
@@ -160,7 +167,7 @@ function resolveAuth(req, res, next) {
   // RSS / Atom 只读令牌：能写进订阅 URL，且仅解锁 /api/feed/*，不会泄露主 API Key
   if (FEED_TOKEN && req.path.startsWith("/feed")) {
     const ft = req.get("X-Feed-Token") || req.query.token || "";
-    if (ft && ft === FEED_TOKEN) {
+    if (ft && safeEqual(ft, FEED_TOKEN)) {
       req.userId = 0;
       req.user = { id: 0, username: "feed", role: "viewer" };
       return next();
@@ -170,7 +177,7 @@ function resolveAuth(req, res, next) {
   // 配置了 API_KEY 时维持原有语义：除认证接口外都必须带正确 Key（只认请求头）
   if (API_KEY) {
     const key = req.get("X-API-Key") || "";
-    if (key && key === API_KEY) {
+    if (key && safeEqual(key, API_KEY)) {
       req.userId = 0;
       req.user = { id: 0, username: "api-key", role: "admin" };
       return next();
