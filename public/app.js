@@ -70,6 +70,12 @@ const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[c]));
 
+// CSP 下不可用内联 onclick：仓库名链接用 data-stop，在捕获阶段阻止冒泡到卡片
+// （否则点链接会连带触发卡片的 openDetail）
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-stop]")) e.stopPropagation();
+}, true);
+
 // ── Tab 切换 ──
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -475,7 +481,7 @@ function renderRepos() {
     <div class="repo-row${isHot(r) ? " repo-hot" : ""}" data-id="${r.id}">
       <div class="rank">${start + i + 1}</div>
       <div class="repo-main">
-        <a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+        <a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" data-stop="1">
           ${escapeHtml(r.full_name)}${r.is_custom ? ' <span class="custom-badge">📌</span>' : ""}
         </a>
         <p class="repo-desc">${escapeHtml(r.description || "（无描述）")}</p>
@@ -688,7 +694,7 @@ async function loadFavorites() {
       <div class="repo-row" data-id="${r.id}">
         <div class="rank">⭐</div>
         <div class="repo-main">
-          <a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(r.full_name)}</a>
+          <a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" data-stop="1">${escapeHtml(r.full_name)}</a>
           <p class="repo-desc">${escapeHtml(r.description || "（无描述）")}</p>
           <div class="repo-meta"><span class="muted">收藏于 ${timeAgo(r.added_at)}</span></div>
         </div>
@@ -935,7 +941,7 @@ async function runReplay() {
       <div class="repo-row" data-id="${r.id}">
         <div class="rank">${r.rank}</div>
         <div class="repo-main">
-          <a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(r.full_name)}</a>
+          <a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" data-stop="1">${escapeHtml(r.full_name)}</a>
           <p class="repo-desc">${escapeHtml(r.description || "（无描述）")}</p>
           <div class="repo-meta">${r.language ? `<span class="lang">${escapeHtml(r.language)}</span>` : ""}<span class="muted">${escapeHtml(d.at.slice(0, 16).replace("T", " "))}</span></div>
         </div>

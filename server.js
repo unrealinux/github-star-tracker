@@ -43,7 +43,38 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(join(__dirname, ".env")); } catch {}
 
 const app = express();
-app.use(express.json({ limit: "25mb" }));
+
+// ── 安全响应头（零依赖手写，避免引入 helmet）──────────────────────
+// script-src 仅 'self'（全站只有 /app.js，无内联脚本）；style-src 保留
+// 'unsafe-inline'（页面用了 style="..."）。session 存 localStorage，CSP 抬高 XSS 门槛。
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+app.use((_req, res, next) => {
+  res.setHeader("Content-Security-Policy", CSP);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  next();
+});
+
+// ── 请求体解析：全局 256kb，仅「数据导入」单独放大到 25mb ──────────
+// 之前全局 25mb 且解析发生在鉴权之前，未认证请求也能逼迫服务解析大体积 body。
+const jsonSmall = express.json({ limit: "256kb" });
+const jsonLarge = express.json({ limit: "25mb" });
+app.use((req, res, next) => (req.path === "/api/maintenance/import" ? next() : jsonSmall(req, res, next)));
 
 // D2: 轻量请求计数（仅按 method+status，避免高基数）供 /metrics 暴露
 const requestCounters = new Map();
@@ -885,7 +916,7 @@ app.get("/api/maintenance/export", (req, res) => {
   }
 });
 
-app.post("/api/maintenance/import", (req, res) => {
+app.post("/api/maintenance/import", jsonLarge, (req, res) => {
   try {
     const mode = req.body?.mode === "replace" ? "replace" : "merge";
     const payload = req.body?.data || req.body;

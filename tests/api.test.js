@@ -181,9 +181,36 @@ describe("自定义仓库与维护端点", () => {
     assert.equal(res.status, 200);
     assert.equal((await res.json()).counts.settings, 1);
   });
+
+  test("普通端点拒绝超大请求体，导入端点仍接受大体积", async () => {
+    const huge = "x".repeat(300 * 1024);
+    const tooBig = await api("/api/custom-repos", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ full_name: "big/repo", note: huge }),
+    });
+    assert.equal(tooBig.status, 413, "普通端点应拒绝超过 256kb 的请求体");
+
+    const importBig = await api("/api/maintenance/import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "merge", data: { settings: [{ key: "bigNote", value: huge }] } }),
+    });
+    assert.equal(importBig.status, 200, "导入端点应仍接受大体积");
+    assert.equal((await importBig.json()).counts.settings, 1);
+  });
 });
 
 describe("公开端点", () => {
+  test("所有响应带安全头（CSP / nosniff / 防嵌套）", async () => {
+    const res = await fetch(base + "/health");
+    const csp = res.headers.get("content-security-policy") || "";
+    assert.match(csp, /default-src 'self'/);
+    assert.match(csp, /script-src 'self'/);
+    assert.match(csp, /frame-ancestors 'none'/);
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(res.headers.get("x-frame-options"), "DENY");
+    assert.equal(res.headers.get("referrer-policy"), "same-origin");
+    assert.match(res.headers.get("permissions-policy") || "", /camera=\(\)/);
+  });
   test("GET /badge/:owner/:name.svg 返回 SVG", async () => {
     const res = await fetch(base + "/badge/api/one.svg");
     assert.equal(res.status, 200);
