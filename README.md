@@ -69,7 +69,7 @@ GitHub 星标追踪工具 —— 实时监控热门仓库的星数变化，支�
 - **API Key 认证**（可选，自动化/管理员通道）
 - 接口速率限制（登录/注册单独限速，防暴破）
 - **安全响应头** —— CSP / nosniff / X-Frame-Options / Referrer-Policy / HSTS（零依赖手写）
-- **基础可访问性** —— Tab 用 `role=tablist/tab/tabpanel` + `aria-selected`，图标按钮有 `aria-label`，弹层 `role=dialog`，状态区 `aria-live`
+- **可访问性** —— Tab 用 `role=tablist/tab/tabpanel` + `aria-selected` + roving tabindex，方向键/Home/End 切换；图标按钮有 `aria-label`；弹层 `role=dialog` + 焦点陷阱 + 背景 `inert` + Esc 关闭并还原焦点；状态区 `aria-live`
 - **请求体限制** —— 全局 256kb，仅数据导入放宽到 25mb
 - 健康检查端点 `/health`
 - **Prometheus 指标** `/metrics`（公开，不含敏感信息）

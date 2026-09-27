@@ -109,6 +109,65 @@ test("Tab 切换：面板显示隐藏与 aria-selected 同步", { skip, timeout:
   );
 });
 
+test("Tab 方向键：ArrowRight 切换并激活下一个标签", { skip, timeout: 60000 }, async () => {
+  const { evaluate, waitFor } = await open();
+  await evaluate(`document.querySelector('.tab[data-tab="repos"]').focus()`);
+  await evaluate(
+    `document.querySelector('.tab[data-tab="repos"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))`,
+  );
+  assert.ok(await waitFor(`document.getElementById('tab-favorites').classList.contains('active')`));
+  assert.equal(
+    await evaluate(`document.querySelector('.tab[data-tab="favorites"]').getAttribute('aria-selected')`),
+    "true",
+  );
+  assert.equal(
+    await evaluate(`document.activeElement === document.querySelector('.tab[data-tab="favorites"]')`),
+    true,
+    "焦点应移动到下一个标签",
+  );
+  // roving tabindex：激活项 0，其余 -1
+  assert.equal(await evaluate(`document.querySelector('.tab[data-tab="favorites"]').tabIndex`), 0);
+  assert.equal(await evaluate(`document.querySelector('.tab[data-tab="repos"]').tabIndex`), -1);
+});
+
+test("弹层焦点陷阱：Tab 循环、背景 inert、Esc 关闭并还原", { skip, timeout: 60000 }, async () => {
+  const { evaluate, waitFor } = await open();
+
+  await evaluate(`document.getElementById('add-custom-btn').click()`);
+  assert.ok(await waitFor(`!document.getElementById('custom-overlay').classList.contains('hidden')`));
+  assert.equal(await evaluate(`document.querySelector('.site-header').inert`), true, "背景应被 inert");
+  assert.ok(
+    await waitFor(`document.getElementById('custom-overlay').contains(document.activeElement)`),
+    "焦点应移入弹层",
+  );
+
+  // 在最后一个控件上按 Tab → 回到第一个
+  await evaluate(`(() => {
+    const root = document.getElementById('custom-overlay');
+    const sel = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    const f = [...root.querySelectorAll(sel)].filter((el) => el.getClientRects().length > 0);
+    f[f.length - 1].focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  })()`);
+  assert.equal(await evaluate(`document.activeElement.id`), "custom-close", "Tab 应循环回第一个控件");
+
+  // 在第一个控件上按 Shift+Tab → 到最后一个
+  await evaluate(`(() => {
+    document.getElementById('custom-close').focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+  })()`);
+  assert.match(
+    await evaluate(`document.activeElement.id`),
+    /custom-(add|cancel)/,
+    "Shift+Tab 应循环到最后一个控件",
+  );
+
+  // Esc 关闭并恢复背景
+  await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+  assert.ok(await waitFor(`document.getElementById('custom-overlay').classList.contains('hidden')`));
+  assert.equal(await evaluate(`document.querySelector('.site-header').inert`), false, "关闭后背景应恢复");
+});
+
 test("详情弹层：点行打开、收藏切换、关闭收起", { skip, timeout: 60000 }, async () => {
   const { evaluate, waitFor } = await open();
   assert.ok(await waitFor(`document.querySelectorAll('.repo-row').length > 0`));
