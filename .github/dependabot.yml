@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # 运行时 / 开发依赖（express、node-cron、eslint、prettier…）
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # minor / patch 合成一个 PR，减少噪音；major 仍单独开
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions（checkout / setup-node / setup-chrome…）
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
