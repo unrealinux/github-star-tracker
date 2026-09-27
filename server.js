@@ -1192,8 +1192,7 @@ ${items}
 app.get("/api/feed/:kind", (req, res) => {
   const kind = String(req.params.kind).replace(/\.xml$/, "");
   const gh = (n) => `https://github.com/${n}`;
-  let title = "";
-  let entries = [];
+  let title, entries;
 
   if (kind === "surges") {
     title = "GitHub Star Tracker · 爆发项目";

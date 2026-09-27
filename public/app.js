@@ -153,7 +153,7 @@ const setTabIndexes = () => {
 setTabIndexes();
 tabEls.forEach((tab, i) => {
   tab.addEventListener("keydown", (e) => {
-    let target = null;
+    let target;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") target = tabEls[(i + 1) % tabEls.length];
     else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
       target = tabEls[(i - 1 + tabEls.length) % tabEls.length];

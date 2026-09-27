@@ -19,9 +19,9 @@ async function getJson(url, headers = {}) {
     if (!res.ok) throw new Error(`数据源返回 HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    if (e.name === "AbortError") throw new Error("数据源请求超时");
+    if (e.name === "AbortError") throw new Error("数据源请求超时", { cause: e });
     if (e.message?.startsWith("数据源")) throw e;
-    throw new Error(`无法连接数据源：${e.message}`);
+    throw new Error(`无法连接数据源：${e.message}`, { cause: e });
   } finally {
     clearTimeout(timer);
   }

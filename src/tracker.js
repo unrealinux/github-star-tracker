@@ -71,7 +71,7 @@ const compactStars = (n) => (n >= 1_000_000 ? `${n / 1_000_000}M` : n >= 1_000 ?
 /** 读取告警配置（含每仓库阈值；阈值按用户隔离） */
 function loadAlertConfig(userId = 0) {
   const key = userId ? `repoThresholds:${userId}` : "repoThresholds";
-  let repoThresholds = {};
+  let repoThresholds;
   try {
     repoThresholds = JSON.parse(getSetting(key, "{}") || "{}");
   } catch {
@@ -1596,7 +1596,7 @@ export function backtestAlerts({
   maxFires = 200,
 } = {}) {
   const lookback = Math.min(365, Math.max(7, Number(days) || 90));
-  let repoThresholds = {};
+  let repoThresholds;
   try {
     repoThresholds = JSON.parse(getSetting("repoThresholds", "{}") || "{}") || {};
   } catch {

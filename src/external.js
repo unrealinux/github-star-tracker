@@ -16,7 +16,7 @@ import { windowOf, avgDailyGrowth } from "./windows.js";
  */
 export async function refreshExternalMetrics({ force = false } = {}) {
   const metrics = listTrackedMetrics();
-  let intervals = {};
+  let intervals;
   try {
     intervals = JSON.parse(getSetting("sourceIntervals", "{}") || "{}");
   } catch {

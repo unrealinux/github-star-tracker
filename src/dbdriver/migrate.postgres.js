@@ -108,7 +108,7 @@ export function migratePostgres(db) {
       db.exec("COMMIT");
     } catch (e) {
       db.exec("ROLLBACK");
-      throw new Error(`PostgreSQL 迁移 v${v + 1} 失败: ${e.message}`);
+      throw new Error(`PostgreSQL 迁移 v${v + 1} 失败: ${e.message}`, { cause: e });
     }
   }
   return { fresh: false, from, to: latest };

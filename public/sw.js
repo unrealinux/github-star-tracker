@@ -65,7 +65,7 @@ self.addEventListener("fetch", (event) => {
 
 // ── Web Push：系统级通知 ──────────────────────────────────────
 self.addEventListener("push", (event) => {
-  let data = {};
+  let data;
   try {
     data = event.data ? event.data.json() : {};
   } catch {
