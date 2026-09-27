@@ -17,32 +17,153 @@
         <p class="subtitle">实时监控热门仓库的星数变化</p>
       </div>
       <div class="header-actions">
-        <span id="alert-badge" class="alert-badge hidden">🔔 <span id="alert-count">0</span></span>
+        <span id="alert-badge" class="alert-badge hidden" role="status" aria-live="polite"
+          >🔔 <span id="alert-count">0</span></span
+        >
         <span id="quota-badge" class="quota-badge">配额: --</span>
-        <button id="palette-btn" class="btn-icon" title="命令面板 (⌘K / Ctrl+K)">⌘K</button>
+        <button id="palette-btn" class="btn-icon" aria-label="命令面板" title="命令面板 (⌘K / Ctrl+K)">
+          ⌘K
+        </button>
         <span id="token-status" class="token-status">检测中…</span>
-        <button id="theme-toggle" class="btn-icon" title="切换主题">🌓</button>
+        <button id="theme-toggle" class="btn-icon" aria-label="切换主题" title="切换主题">🌓</button>
       </div>
     </header>
 
-    <nav class="tab-nav">
-      <button class="tab active" data-tab="repos">📊 仓库列表</button>
-      <button class="tab" data-tab="favorites">⭐ 收藏</button>
-      <button class="tab" data-tab="custom">📌 自定义</button>
-      <button class="tab" data-tab="language-trend">🌍 语言趋势</button>
-      <button class="tab" data-tab="rank">📈 排名变化</button>
-      <button class="tab" data-tab="leaderboard">🏆 排行榜</button>
-      <button class="tab" data-tab="surge">🚀 爆发榜</button>
-      <button class="tab" data-tab="compare">⚖️ 对比</button>
-      <button class="tab" data-tab="overview">📉 全局趋势</button>
-      <button class="tab" data-tab="signals">🔎 信号</button>
-      <button class="tab" data-tab="indices">🧭 指数与生态</button>
-      <button class="tab" data-tab="external">📦 外部指标</button>
-      <button class="tab" data-tab="settings">⚙️ 设置</button>
+    <nav class="tab-nav" role="tablist" aria-label="主导航">
+      <button
+        id="tab-btn-repos"
+        class="tab active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="tab-repos"
+        data-tab="repos"
+      >
+        📊 仓库列表
+      </button>
+      <button
+        id="tab-btn-favorites"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-favorites"
+        data-tab="favorites"
+      >
+        ⭐ 收藏
+      </button>
+      <button
+        id="tab-btn-custom"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-custom"
+        data-tab="custom"
+      >
+        📌 自定义
+      </button>
+      <button
+        id="tab-btn-language-trend"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-language-trend"
+        data-tab="language-trend"
+      >
+        🌍 语言趋势
+      </button>
+      <button
+        id="tab-btn-rank"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-rank"
+        data-tab="rank"
+      >
+        📈 排名变化
+      </button>
+      <button
+        id="tab-btn-leaderboard"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-leaderboard"
+        data-tab="leaderboard"
+      >
+        🏆 排行榜
+      </button>
+      <button
+        id="tab-btn-surge"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-surge"
+        data-tab="surge"
+      >
+        🚀 爆发榜
+      </button>
+      <button
+        id="tab-btn-compare"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-compare"
+        data-tab="compare"
+      >
+        ⚖️ 对比
+      </button>
+      <button
+        id="tab-btn-overview"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-overview"
+        data-tab="overview"
+      >
+        📉 全局趋势
+      </button>
+      <button
+        id="tab-btn-signals"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-signals"
+        data-tab="signals"
+      >
+        🔎 信号
+      </button>
+      <button
+        id="tab-btn-indices"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-indices"
+        data-tab="indices"
+      >
+        🧭 指数与生态
+      </button>
+      <button
+        id="tab-btn-external"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-external"
+        data-tab="external"
+      >
+        📦 外部指标
+      </button>
+      <button
+        id="tab-btn-settings"
+        class="tab"
+        role="tab"
+        aria-selected="false"
+        aria-controls="tab-settings"
+        data-tab="settings"
+      >
+        ⚙️ 设置
+      </button>
     </nav>
 
     <!-- ===== 仓库列表 ===== -->
-    <section id="tab-repos" class="tab-content active">
+    <section id="tab-repos" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-repos">
       <section class="controls">
         <label
           >最低星数 <input id="min-stars" type="number" min="0" step="1" placeholder="例如 1000"
@@ -97,7 +218,7 @@
         <button id="today" class="btn btn-secondary">今日新增榜</button>
         <button id="export" class="btn btn-secondary">导出 CSV</button>
         <button id="refresh" class="btn btn-primary">立即更新数据</button>
-        <span id="status" class="status"></span>
+        <span id="status" class="status" role="status" aria-live="polite"></span>
       </section>
 
       <section class="stats">
@@ -143,7 +264,7 @@
     </section>
 
     <!-- ===== 收藏 ===== -->
-    <section id="tab-favorites" class="tab-content">
+    <section id="tab-favorites" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-favorites">
       <section class="list-header">
         <h2>⭐ 我的收藏</h2>
         <span id="fav-count" class="list-count"></span>
@@ -153,7 +274,7 @@
     </section>
 
     <!-- ===== 自定义 ===== -->
-    <section id="tab-custom" class="tab-content">
+    <section id="tab-custom" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-custom">
       <section class="list-header">
         <h2>📌 自定义追踪</h2>
         <button id="backfill-btn" class="btn btn-secondary">📜 回填自定义仓库历史</button>
@@ -164,10 +285,15 @@
     </section>
 
     <!-- ===== 语言趋势 ===== -->
-    <section id="tab-language-trend" class="tab-content">
+    <section
+      id="tab-language-trend"
+      class="tab-content"
+      role="tabpanel"
+      aria-labelledby="tab-btn-language-trend"
+    >
       <section class="list-header">
         <h2>🌍 多语言增长趋势</h2>
-        <select id="trend-window" class="btn btn-secondary">
+        <select id="trend-window" class="btn btn-secondary" aria-label="时间窗口">
           <option value="day">近24h</option>
           <option value="week">近7天</option>
           <option value="month">近30天</option>
@@ -177,10 +303,10 @@
     </section>
 
     <!-- ===== 排名变化（P1-5）===== -->
-    <section id="tab-rank" class="tab-content">
+    <section id="tab-rank" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-rank">
       <section class="list-header">
         <h2>📈 排名变化</h2>
-        <select id="rank-window" class="btn btn-secondary">
+        <select id="rank-window" class="btn btn-secondary" aria-label="时间窗口">
           <option value="day">近24h</option>
           <option value="week">近7天</option>
           <option value="month">近30天</option>
@@ -199,7 +325,7 @@
     </section>
 
     <!-- ===== 🏆 排行榜 ===== -->
-    <section id="tab-leaderboard" class="tab-content">
+    <section id="tab-leaderboard" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-leaderboard">
       <section class="list-header">
         <h2>🏆 排行榜</h2>
         <div class="lb-controls">
@@ -246,7 +372,7 @@
     </section>
 
     <!-- ===== 🚀 爆发榜 + ⏪ 历史回放 ===== -->
-    <section id="tab-surge" class="tab-content">
+    <section id="tab-surge" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-surge">
       <section class="list-header">
         <h2>🚀 爆发榜（增速加速度）</h2>
         <div class="lb-controls">
@@ -312,13 +438,13 @@
         </label>
         <button id="replay-go" class="btn btn-primary">回放</button>
         <button id="replay-now" class="btn btn-secondary">重置为现在</button>
-        <span id="replay-status" class="status"></span>
+        <span id="replay-status" class="status" role="status" aria-live="polite"></span>
       </section>
       <div id="replay-result" class="repo-list"></div>
     </section>
 
     <!-- ===== ⚖️ 仓库对比 ===== -->
-    <section id="tab-compare" class="tab-content">
+    <section id="tab-compare" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-compare">
       <section class="list-header">
         <h2>⚖️ 仓库对比</h2>
         <span class="muted" style="font-size: 12px">最多同时对比 8 个仓库，可按百分比变化归一化叠加</span>
@@ -357,7 +483,7 @@
     </section>
 
     <!-- ===== 🔎 信号 ===== -->
-    <section id="tab-signals" class="tab-content">
+    <section id="tab-signals" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-signals">
       <section class="list-header">
         <h2>🔎 异常检测（z-score）</h2>
         <div class="lb-controls">
@@ -469,7 +595,7 @@
     </section>
 
     <!-- ===== 🧭 指数与生态 ===== -->
-    <section id="tab-indices" class="tab-content">
+    <section id="tab-indices" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-indices">
       <section class="list-header">
         <h2>🧭 自定义指数</h2>
         <span class="muted" style="font-size: 12px"
@@ -533,7 +659,7 @@
         /></label>
         <button id="q-add" class="btn btn-primary">添加追踪</button>
         <button id="q-refresh" class="btn btn-secondary">立即刷新成员</button>
-        <span id="q-status" class="status"></span>
+        <span id="q-status" class="status" role="status" aria-live="polite"></span>
       </section>
       <div id="q-list" class="entity-list"></div>
       <section class="list-header">
@@ -561,7 +687,7 @@
     </section>
 
     <!-- ===== 📉 全局趋势 ===== -->
-    <section id="tab-overview" class="tab-content">
+    <section id="tab-overview" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-overview">
       <section class="list-header">
         <h2>📉 全局趋势</h2>
         <div class="lb-controls">
@@ -601,7 +727,7 @@
     </section>
 
     <!-- ===== 📦 外部指标（P3）===== -->
-    <section id="tab-external" class="tab-content">
+    <section id="tab-external" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-external">
       <section class="list-header">
         <h2>📦 外部指标追踪</h2>
         <div class="lb-controls">
@@ -625,7 +751,7 @@
     </section>
 
     <!-- ===== 设置 ===== -->
-    <section id="tab-settings" class="tab-content">
+    <section id="tab-settings" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-settings">
       <section class="settings-section">
         <h2>⚙️ 基本设置</h2>
         <div class="setting-row">
@@ -801,7 +927,7 @@
 
     <!-- 详情弹窗 -->
     <div id="detail-overlay" class="overlay hidden">
-      <div class="detail-modal" id="detail-modal">
+      <div class="detail-modal" id="detail-modal" role="dialog" aria-modal="true" aria-label="仓库详情">
         <button class="detail-close" id="detail-close" aria-label="关闭">×</button>
         <div id="detail-body"></div>
       </div>
@@ -809,7 +935,13 @@
 
     <!-- 添加自定义仓库弹窗 -->
     <div id="custom-overlay" class="overlay hidden">
-      <div class="detail-modal" style="max-width: 420px">
+      <div
+        class="detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="添加自定义仓库"
+        style="max-width: 420px"
+      >
         <button class="detail-close" id="custom-close" aria-label="关闭">×</button>
         <h3>添加自定义仓库</h3>
         <label
@@ -820,13 +952,19 @@
           <button id="custom-cancel" class="btn btn-secondary">取消</button>
           <button id="custom-add" class="btn btn-primary">添加并追踪</button>
         </div>
-        <div id="custom-error" class="error hidden"></div>
+        <div id="custom-error" class="error hidden" role="alert"></div>
       </div>
     </div>
 
     <!-- 添加外部指标弹窗 -->
     <div id="metric-overlay" class="overlay hidden">
-      <div class="detail-modal" style="max-width: 440px">
+      <div
+        class="detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="添加外部指标"
+        style="max-width: 440px"
+      >
         <button class="detail-close" id="metric-close" aria-label="关闭">×</button>
         <h3>添加外部指标</h3>
         <label
@@ -838,16 +976,17 @@
           <button id="metric-cancel" class="btn btn-secondary">取消</button>
           <button id="metric-add" class="btn btn-primary">添加并追踪</button>
         </div>
-        <div id="metric-error" class="error hidden"></div>
+        <div id="metric-error" class="error hidden" role="alert"></div>
       </div>
     </div>
 
     <!-- 命令面板（⌘K）-->
     <div id="palette-overlay" class="overlay hidden">
-      <div class="palette">
+      <div class="palette" role="dialog" aria-modal="true" aria-label="命令面板">
         <input
           id="palette-input"
           type="text"
+          aria-label="搜索仓库、页面或动作"
           autocomplete="off"
           placeholder="搜索仓库、页面或动作…（↑↓ 选择 · Enter 执行 · Esc 关闭）"
         />
@@ -857,7 +996,13 @@
 
     <!-- 登录 / 初始化管理员 -->
     <div id="auth-overlay" class="overlay hidden">
-      <div class="detail-modal" style="max-width: 380px">
+      <div
+        class="detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="登录或初始化管理员"
+        style="max-width: 380px"
+      >
         <h3 id="auth-title">登录</h3>
         <p id="auth-hint" class="muted" style="font-size: 12px; margin: 0 0 12px"></p>
         <label>用户名 <input id="auth-username" type="text" autocomplete="username" /></label>
@@ -865,7 +1010,7 @@
         <div class="modal-actions">
           <button id="auth-submit" class="btn btn-primary">登录</button>
         </div>
-        <div id="auth-error" class="error hidden"></div>
+        <div id="auth-error" class="error hidden" role="alert"></div>
       </div>
     </div>
 

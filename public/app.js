@@ -110,12 +110,16 @@ document.addEventListener(
 // ── Tab 切换 ──
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((t) => {
+      t.classList.remove("active");
+      t.setAttribute("aria-selected", "false");
+    });
     document.querySelectorAll(".tab-content").forEach((c) => {
       c.classList.remove("active");
       c.classList.add("hidden");
     });
     tab.classList.add("active");
+    tab.setAttribute("aria-selected", "true");
     state.activeTab = tab.dataset.tab;
     const target = $(`tab-${state.activeTab}`);
     if (target) {

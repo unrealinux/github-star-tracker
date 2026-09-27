@@ -69,6 +69,7 @@ GitHub 星标追踪工具 —— 实时监控热门仓库的星数变化，支�
 - **API Key 认证**（可选，自动化/管理员通道）
 - 接口速率限制（登录/注册单独限速，防暴破）
 - **安全响应头** —— CSP / nosniff / X-Frame-Options / Referrer-Policy / HSTS（零依赖手写）
+- **基础可访问性** —— Tab 用 `role=tablist/tab/tabpanel` + `aria-selected`，图标按钮有 `aria-label`，弹层 `role=dialog`，状态区 `aria-live`
 - **请求体限制** —— 全局 256kb，仅数据导入放宽到 25mb
 - 健康检查端点 `/health`
 - **Prometheus 指标** `/metrics`（公开，不含敏感信息）
@@ -367,7 +368,7 @@ npm run format      # 一键格式化
 
 覆盖：增长计算、过滤/分页、排名变化、预测、数据库操作、告警规则、多渠道编码、回填、导入导出、保存视图，以及 `tests/api.test.js` 中的 HTTP 路由集成测试（真启动 Express + fetch）。
 
-`tests/frontend/smoke.test.js` 是前端冒烟：用真实 Chrome 无头 + 原生 CDP（零依赖）加载页面，断言 `app.js` 真的跑起来、且没有 JS 异常 / CSP 违规 / 资源加载失败。它不在 `npm test` 的通配范围内（避免在无 Chrome 的作业里空跑），用 `npm run test:frontend` 单独跑；CI 有独立作业用 `browser-actions/setup-chrome` 装上 Chrome 真跑。
+`tests/frontend/smoke.test.js` 是前端冒烟：用真实 Chrome 无头 + 原生 CDP（零依赖）加载页面，断言 `app.js` 真的跑起来、且没有 JS 异常 / CSP 违规 / 资源加载失败；同时做一次无障碍扫描（按钮/表单可访问名称、Tab 语义、重复 id）。它不在 `npm test` 的通配范围内（避免在无 Chrome 的作业里空跑），用 `npm run test:frontend` 单独跑；CI 有独立作业用 `browser-actions/setup-chrome` 装上 Chrome 真跑。
 
 要在真实 PostgreSQL 上验证（起库、每文件独立库、迁移后两端对拍、预期差异与已知坑）：见 [`docs/verification-checklist.md`](docs/verification-checklist.md)。
 
