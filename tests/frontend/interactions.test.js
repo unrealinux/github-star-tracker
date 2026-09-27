@@ -81,10 +81,9 @@ test("主题切换：data-theme 变化且刷新后保持", { skip, timeout: 6000
   assert.notEqual(after, before);
   assert.ok(["light", "dark", "contrast"].includes(after), `未知主题：${after}`);
 
-  const { evaluate: reload } = await open();
-  assert.equal(
-    await reload(`document.documentElement.getAttribute('data-theme')`),
-    after,
+  const { waitFor: reloadWait } = await open();
+  assert.ok(
+    await reloadWait(`document.documentElement.getAttribute('data-theme') === ${JSON.stringify(after)}`),
     "刷新后主题应保持",
   );
 });

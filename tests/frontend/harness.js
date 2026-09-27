@@ -225,7 +225,8 @@ export async function openPage(cdp, url) {
     return false;
   };
 
-  // 等首屏数据加载完成（#token-status 由「检测中…」被刷新）
+  // 等首屏数据加载完成：#token-status 被刷新，且 settings 已应用（最低星数输入框被填值）
   await waitFor(`document.getElementById('token-status')?.textContent?.trim() !== '检测中…'`);
+  await waitFor(`document.getElementById('min-stars')?.value !== ''`);
   return { evaluate, waitFor };
 }
