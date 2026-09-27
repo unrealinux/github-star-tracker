@@ -21,7 +21,7 @@
     "migrate:postgres": "node scripts/migrate-to-postgres.mjs"
   },
   "dependencies": {
-    "express": "^4.21.2",
+    "express": "^5.2.1",
     "node-cron": "^4.6.0"
   },
   "optionalDependencies": {
