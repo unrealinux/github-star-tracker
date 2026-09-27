@@ -7,7 +7,10 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      # minor / patch 合成一个 PR，减少噪音；major 仍单独开
+      # ESLint 工具链必须一起动：eslint 与 @eslint/js 的大版本互相对不上
+      eslint-toolchain:
+        patterns: ["eslint", "@eslint/js", "eslint-config-prettier"]
+      # 其余 minor / patch 合成一个 PR，减少噪音；major 仍单独开
       npm-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
