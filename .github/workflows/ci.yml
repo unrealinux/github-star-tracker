@@ -161,6 +161,40 @@ jobs:
           pg_restore --no-owner --no-acl --dbname="$DST" "$DUMP"
           DB_DRIVER=postgres DATABASE_URL="$DST" node scripts/verify-pg-backup.mjs verify
 
+      # 跨大版本恢复：PG16 上 dump → 恢复到 PG17（用容器内 v17 pg_restore，与应用版本对齐）
+      - name: 跨大版本恢复（PG 16 → PG 17）
+        env:
+          PGPASSWORD: gst
+        run: |
+          docker run -d --name gst-pg17 \
+            -e POSTGRES_USER=gst -e POSTGRES_PASSWORD=gst -e POSTGRES_DB=gst \
+            -p 5434:5432 postgres:17-alpine
+          ready=""
+          for i in $(seq 1 60); do
+            if docker exec gst-pg17 pg_isready -h 127.0.0.1 -p 5432 -U gst -d gst >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          if [ -z "$ready" ]; then docker logs gst-pg17 2>&1 | tail -40; exit 1; fi
+          for i in $(seq 1 30); do
+            if docker exec gst-pg17 psql -h 127.0.0.1 -U gst -d gst -tAc "select 1" >/dev/null 2>&1; then ready=2; break; fi
+            sleep 1
+          done
+          [ "$ready" = "2" ] || { echo "PG17 未就绪"; docker logs gst-pg17 2>&1 | tail -40; exit 1; }
+
+          # 源库是上一步在 PG16 上建好的 gst_restore_src；目标在 PG17
+          SRC="postgres://gst_app:gst@127.0.0.1:5432/gst_restore_src"
+          DST="postgres://gst:gst@127.0.0.1:5434/gst_restore_dst"
+
+          docker exec gst-pg17 psql -h 127.0.0.1 -U gst -d gst -v ON_ERROR_STOP=1 -c "CREATE DATABASE gst_restore_dst;"
+          DUMP=$(DB_DRIVER=postgres DATABASE_URL="$SRC" node scripts/verify-pg-backup.mjs seed | sed -n 's/^dump=//p')
+          test -n "$DUMP" || { echo "未产出 dump"; exit 1; }
+          echo "dump(16)=$DUMP"
+
+          # 用容器内的 v17 pg_restore（版本与目标服务对齐），dump 经 stdin 传进去
+          docker exec -i -e PGPASSWORD=gst gst-pg17 \
+            pg_restore --no-owner --no-acl -h 127.0.0.1 -U gst -d gst_restore_dst < "$DUMP"
+          DB_DRIVER=postgres DATABASE_URL="$DST" node scripts/verify-pg-backup.mjs verify
+
   # 前端冒烟：真实 Chrome 无头加载页面，断言无 JS 异常 / CSP 违规 / 资源失败
   frontend:
     name: 前端冒烟（Chrome）
