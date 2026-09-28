@@ -21,7 +21,7 @@ import {
   markAlertsRead,
   getRecentAlerts,
   getApiQuotaInfo,
-  exportDb,
+  createBackup,
   exportData,
   importData,
   getSavedViews,
@@ -1077,8 +1077,9 @@ app.post("/api/maintenance/cleanup", (_req, res) => {
 app.get("/api/maintenance/export", (req, res) => {
   try {
     if (req.query.format === "json") return res.json(exportData());
-    const path = exportDb();
-    res.download(path, `github-star-tracker-backup-${new Date().toISOString().slice(0, 10)}.db`);
+    const { file, kind } = createBackup();
+    const ext = kind === "sqlite" ? "db" : kind === "pg_dump" ? "dump" : "json";
+    res.download(file, `github-star-tracker-backup-${new Date().toISOString().slice(0, 10)}.${ext}`);
   } catch (e) {
     res.status(500).json({ error: "导出失败：" + e.message });
   }
@@ -1320,8 +1321,8 @@ function startScheduler() {
     cron.schedule("0 3 * * *", () => {
       if (getSetting("autoBackup", "1") !== "1") return;
       try {
-        const p = exportDb();
-        logger.info("自动备份完成", { file: p.split("/").pop() });
+        const { file, kind } = createBackup();
+        logger.info("自动备份完成", { file: file.split(/[\\/]/).pop(), kind });
       } catch (e) {
         logger.warn("自动备份失败", { error: e.message });
       }

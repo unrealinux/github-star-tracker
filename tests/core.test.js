@@ -5,7 +5,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -35,6 +35,7 @@ const {
   getRepoIdMap,
   getRetentionDays,
   exportData,
+  createBackup,
   importData,
   addIndex,
   getIndex,
@@ -2396,5 +2397,20 @@ describe("查询结果定序（SQLite / PostgreSQL 必须一致）", () => {
 
     assert.equal(lb.byGrowth.length, 6, "6 个仓库增长相同，应全部入增长榜");
     assert.ok(asc(lb.byGrowth.map((r) => r.id)), "byGrowth 并列应按 id 升序");
+  });
+});
+
+describe("备份（createBackup，三后端通用）", () => {
+  test("生成非空备份文件，且最多保留 5 份", () => {
+    const { file, kind } = createBackup();
+    assert.ok(["sqlite", "pg_dump", "json"].includes(kind), `未知备份类型：${kind}`);
+    assert.ok(existsSync(file), `备份文件不存在：${file}`);
+    assert.ok(statSync(file).size > 0, "备份文件不应为空");
+
+    // 造 7 份历史备份，再触发一次，验证只留最近 5 份
+    for (let i = 0; i < 7; i++) writeFileSync(join(tmp, `tracker-backup-fake-${i}.db`), "x");
+    createBackup();
+    const n = readdirSync(tmp).filter((f) => f.startsWith("tracker-backup-")).length;
+    assert.ok(n <= 5, `应最多保留 5 份备份，实际 ${n}`);
   });
 });

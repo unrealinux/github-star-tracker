@@ -188,6 +188,13 @@ describe("自定义仓库与维护端点", () => {
     assert.equal(del.status, 200);
   });
 
+  test("GET /api/maintenance/export 返回非空备份文件", async () => {
+    const res = await api("/api/maintenance/export");
+    assert.equal(res.status, 200);
+    const buf = Buffer.from(await res.arrayBuffer());
+    assert.ok(buf.length > 0, "备份文件不应为空");
+  });
+
   test("GET /api/maintenance/export?format=json 返回可导入数据", async () => {
     const res = await api("/api/maintenance/export?format=json");
     assert.equal(res.status, 200);

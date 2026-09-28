@@ -1,4 +1,5 @@
-import { mkdirSync, readdirSync, unlinkSync, statSync } from "node:fs";
+import { mkdirSync, readdirSync, unlinkSync, statSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDriver, driverName, isPostgres } from "./dbdriver/index.js";
@@ -769,30 +770,72 @@ export function getApiQuotaInfo() {
 
 // ── 备份 ──────────────────────────────────────────────────────────
 const MAX_BACKUPS = 5;
+const BACKUP_PREFIX = "tracker-backup-";
 
-export function exportDb() {
-  if (isPostgres) {
-    throw new Error("PostgreSQL 模式不支持 .db 文件导出，请使用 JSON 导出（?format=json）或 pg_dump");
-  }
-  const dbDir = dirname(dbPath);
-  const backupPath = join(
-    dbDir,
-    `tracker-backup-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.db`,
-  );
-  // VACUUM INTO 生成一致性快照，且兼容 WAL 模式（直接 copy 可能拷到半写状态）
-  db.exec(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
+/** 备份文件时间戳：2026-09-27-11-30-00-123-ab12（毫秒 + 随机后缀，避免同秒/同毫秒覆盖） */
+const backupStamp = () =>
+  new Date().toISOString().slice(0, 23).replace(/[T:.]/g, "-") + "-" + Math.random().toString(16).slice(2, 6);
+
+/** 保留最近 MAX_BACKUPS 份备份（.db / .dump / .json 一起算） */
+function pruneBackups(dir) {
   try {
-    const backups = readdirSync(dbDir)
-      .filter((f) => f.startsWith("tracker-backup-") && f.endsWith(".db"))
-      .map((f) => ({ f, t: statSync(join(dbDir, f)).mtimeMs }))
+    const files = readdirSync(dir)
+      .filter((f) => f.startsWith(BACKUP_PREFIX))
+      .map((f) => ({ f, t: statSync(join(dir, f)).mtimeMs }))
       .sort((a, b) => b.t - a.t);
-    for (const { f } of backups.slice(MAX_BACKUPS)) {
+    for (const { f } of files.slice(MAX_BACKUPS)) {
       try {
-        unlinkSync(join(dbDir, f));
+        unlinkSync(join(dir, f));
       } catch {}
     }
   } catch {}
+}
+
+/** SQLite：VACUUM INTO 生成一致性快照（兼容 WAL 模式；直接 copy 可能拷到半写状态） */
+export function exportDb() {
+  if (isPostgres) {
+    throw new Error("PostgreSQL 模式不支持 .db 文件导出，请用 createBackup() 或 JSON 导出（?format=json）");
+  }
+  const dbDir = dirname(dbPath);
+  const backupPath = join(dbDir, `${BACKUP_PREFIX}${backupStamp()}.db`);
+  db.exec(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
+  pruneBackups(dbDir);
   return backupPath;
+}
+
+/**
+ * 三后端通用的自动备份。
+ *  - SQLite：VACUUM INTO 的 .db 快照
+ *  - 外部 PostgreSQL：pg_dump（custom 格式，--no-owner/--no-acl 便于跨角色恢复）
+ *  - 内嵌 PGlite：没有可连接的服务器，退回 JSON 逻辑备份（可用 importData 恢复）
+ * 返回 { file, kind }，kind ∈ sqlite | pg_dump | json
+ */
+export function createBackup() {
+  if (!isPostgres) return { file: exportDb(), kind: "sqlite" };
+
+  const dir = dataDir;
+  const url = process.env.DATABASE_URL || "";
+  if (url) {
+    const file = join(dir, `${BACKUP_PREFIX}${backupStamp()}.dump`);
+    const r = spawnSync("pg_dump", ["--format=custom", "--no-owner", "--no-acl", "--file", file, url], {
+      encoding: "utf8",
+      timeout: 300_000,
+    });
+    if (r.error) throw new Error(`pg_dump 不可用：${r.error.message}`);
+    if (r.status !== 0) {
+      try {
+        unlinkSync(file);
+      } catch {}
+      throw new Error(`pg_dump 失败：${(r.stderr || "").trim() || `exit ${r.status}`}`);
+    }
+    pruneBackups(dir);
+    return { file, kind: "pg_dump" };
+  }
+
+  const file = join(dir, `${BACKUP_PREFIX}${backupStamp()}.json`);
+  writeFileSync(file, JSON.stringify(exportData()));
+  pruneBackups(dir);
+  return { file, kind: "json" };
 }
 
 // ── 调度状态持久化 ────────────────────────────────────────────────

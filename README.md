@@ -52,7 +52,7 @@ GitHub 星标追踪工具 —— 实时监控热门仓库的星数变化，支�
 - **RSS / Atom 订阅** —— `/api/feed/surges.xml`、`/api/feed/new.xml`、`/api/feed/alerts.xml`
 - **CSV 导出**
 - **数据导入 / 导出** —— 支持 `.db` 备份与 JSON 导出；JSON 可跨实例合并或覆盖恢复
-- **自动备份** —— 每日自动备份，保留最近 5 份
+- **自动备份** —— 每日自动备份，保留最近 5 份；SQLite 用 `VACUUM INTO`、外部 PostgreSQL 用 `pg_dump`（custom 格式）、内嵌 PGlite 退回 JSON 逻辑备份
 - **深色 / 浅色 / 高对比度** 三种主题
 - **⌘K 命令面板** —— 快捷键搜索仓库、跳转页面、执行动作
 - **时间线标注** —— 历史曲线上标出里程碑与告警触发点
@@ -217,7 +217,7 @@ npm run migrate:postgres -- --database-url postgres://user:pass@host/gst
 
 采用**合并**语义（按唯一键去重），可安全重复执行；覆盖仓库、快照、告警、自定义仓库、收藏、指数、生态追踪、外部指标、推送订阅与用户。
 
-> `/api/maintenance/export` 的 `.db` 备份仅适用于 SQLite；PostgreSQL 模式请用 `?format=json` 或 `pg_dump`。
+> `/api/maintenance/export` 默认返回当前后端的备份文件：SQLite `.db`、外部 PostgreSQL `.dump`（`pg_dump` 生成）、PGlite `.json`；`?format=json` 始终返回可导入的逻辑数据。
 >
 > `pg` 与 `@electric-sql/pglite` 都是 **optionalDependencies**：只用 SQLite 时可以用 `npm ci --omit=optional` 跳过安装。
 
