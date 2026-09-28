@@ -262,7 +262,7 @@ diff -rq /tmp/cmp-lite /tmp/cmp-pg
 
 ## 本清单**不**覆盖
 
-- 前端在浏览器中的**压力/兼容性**行为（`tests/frontend/*.test.js` 只跑冒烟 + 主要交互，不代表全量回归）。
+- 前端在浏览器中的**压力/兼容性**行为（`tests/frontend/*.test.js` 只跑冒烟 + 主要交互 + 登录流程，不代表全量回归）。
 - 真实 PostgreSQL 的**版本差异**：这里只跑了 `postgres:16-alpine`。其它大版本请各跑一次 Step 3。
 - SSL：CI 已用自签证书起 TLS 版 PG，验证 `PGSSLMODE=require` 确实加密、`disable` 为明文；`verify-ca`/`verify-full` 的证书链校验未在 CI 跑（只有纯函数单测）。
 - PG 角色/权限模型、多连接并发：受限角色与并发连接未验证。

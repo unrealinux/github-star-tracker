@@ -225,8 +225,15 @@ export async function openPage(cdp, url) {
     return false;
   };
 
-  // 等首屏数据加载完成：#token-status 被刷新，且 settings 已应用（最低星数输入框被填值）
-  await waitFor(`document.getElementById('token-status')?.textContent?.trim() !== '检测中…'`);
-  await waitFor(`document.getElementById('min-stars')?.value !== ''`);
+  // 等首屏就绪：要么已登录并加载完数据（#token-status 被刷新 + settings 已应用），
+  // 要么被登录层拦住（多用户模式下未登录）。
+  await waitFor(
+    `document.getElementById('token-status')?.textContent?.trim() !== '检测中…'` +
+      ` || !document.getElementById('auth-overlay')?.classList.contains('hidden')`,
+  );
+  await waitFor(
+    `document.getElementById('min-stars')?.value !== ''` +
+      ` || !document.getElementById('auth-overlay')?.classList.contains('hidden')`,
+  );
   return { evaluate, waitFor };
 }
