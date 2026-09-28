@@ -33,6 +33,7 @@ const {
   getApiQuotaInfo,
   cleanupOldSnapshots,
   getRepoIdMap,
+  getRepoFullNameById,
   getRetentionDays,
   exportData,
   createBackup,
@@ -541,6 +542,14 @@ describe("数据库操作", () => {
     const m = getRepoIdMap(["alpha/python-tool", "beta/rust-lib", "nope/x"]);
     assert.equal(m.size, 2);
     assert.ok(m.get("alpha/python-tool"));
+  });
+
+  test("getRepoFullNameById 按 id 查 full_name", () => {
+    const id = getRepoIdMap(["alpha/python-tool"]).get("alpha/python-tool");
+    assert.equal(getRepoFullNameById(id).full_name, "alpha/python-tool");
+    assert.equal(getRepoFullNameById(999999), null);
+    assert.equal(getRepoFullNameById("1"), null);
+    assert.equal(getRepoFullNameById(1.5), null);
   });
 
   test("getStats 汇总", () => {

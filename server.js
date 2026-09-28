@@ -51,6 +51,7 @@ import {
   removeTrackedMetric,
   getTrackedMetric,
   countTrackedMetrics,
+  getRepoFullNameById,
 } from "./src/db.js";
 import { hashPassword, verifyPassword, newSessionToken, SESSION_TTL_MS } from "./src/auth.js";
 import {
@@ -686,7 +687,7 @@ app.get("/api/repos/:id/similar", (req, res) => {
 // ── A4: 仓库富化信息（topics/license/release/contributors）───────
 app.get("/api/repos/:id/enrich", rateLimit({ windowMs: 60_000, max: 20 }), async (req, res) => {
   const id = Number(req.params.id);
-  const repo = Number.isInteger(id) ? db.prepare("SELECT full_name FROM repos WHERE id = ?").get(id) : null;
+  const repo = getRepoFullNameById(id);
   if (!repo) return res.status(404).json({ error: "项目不存在" });
   try {
     res.json(await fetchRepoDetails(repo.full_name, TOKEN));
@@ -727,7 +728,7 @@ function readRepoThresholds(userId = 0) {
 
 app.get("/api/repos/:id/alert", (req, res) => {
   const id = Number(req.params.id);
-  const repo = Number.isInteger(id) ? db.prepare("SELECT full_name FROM repos WHERE id = ?").get(id) : null;
+  const repo = getRepoFullNameById(id);
   if (!repo) return res.status(404).json({ error: "项目不存在" });
   const thresholds = readRepoThresholds(req.userId || 0);
   res.json({
@@ -739,7 +740,7 @@ app.get("/api/repos/:id/alert", (req, res) => {
 
 app.put("/api/repos/:id/alert", (req, res) => {
   const id = Number(req.params.id);
-  const repo = Number.isInteger(id) ? db.prepare("SELECT full_name FROM repos WHERE id = ?").get(id) : null;
+  const repo = getRepoFullNameById(id);
   if (!repo) return res.status(404).json({ error: "项目不存在" });
   const thresholds = readRepoThresholds(req.userId || 0);
   const raw = req.body?.threshold;

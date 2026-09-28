@@ -955,6 +955,12 @@ export function renameRepo(oldName, newName) {
   }
 }
 
+// ── 按 id 查询仓库 full_name（不存在或 id 非法时返回 null）──────────
+export function getRepoFullNameById(id) {
+  if (!Number.isInteger(id)) return null;
+  return db.prepare("SELECT full_name FROM repos WHERE id = ?").get(id) || null;
+}
+
 // ── P2-8: 批量查询 repo id（消除 N+1）─────────────────────────────
 export function getRepoIdMap(names) {
   const map = new Map();
