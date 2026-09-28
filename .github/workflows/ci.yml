@@ -100,19 +100,28 @@ jobs:
       - name: 启动 TLS 版 PostgreSQL
         run: |
           mkdir -p .ci-certs
-          openssl req -new -x509 -days 1 -nodes -text -subj "/CN=127.0.0.1" \
+          openssl req -new -x509 -days 1 -nodes -subj "/CN=127.0.0.1" \
             -out .ci-certs/server.crt -keyout .ci-certs/server.key
-          chmod 644 .ci-certs/server.crt .ci-certs/server.key
+          # PostgreSQL 要求私钥不被 group/other 读，且属主为容器里的 postgres（alpine uid=70）
+          chmod 644 .ci-certs/server.crt
+          chmod 600 .ci-certs/server.key
+          sudo chown 70:70 .ci-certs/server.crt .ci-certs/server.key
           docker run -d --name gst-pg-tls \
             -e POSTGRES_USER=gst -e POSTGRES_PASSWORD=gst -e POSTGRES_DB=gst \
             -v "$PWD/.ci-certs:/certs:ro" -p 5433:5432 \
             postgres:16-alpine \
             -c ssl=on -c ssl_cert_file=/certs/server.crt -c ssl_key_file=/certs/server.key
+          ready=""
           for i in $(seq 1 60); do
-            docker exec gst-pg-tls pg_isready -U gst -d gst >/dev/null 2>&1 && break
+            if docker exec gst-pg-tls pg_isready -U gst -d gst >/dev/null 2>&1; then ready=1; break; fi
             sleep 1
           done
-          docker exec gst-pg-tls pg_isready -U gst -d gst
+          if [ -z "$ready" ]; then
+            echo "TLS PG 未就绪，容器日志："
+            docker logs gst-pg-tls 2>&1 | tail -40
+            exit 1
+          fi
+          echo "TLS PG ready"
 
       - name: 验证 PG SSL（require=加密 / disable=明文）
         env:
