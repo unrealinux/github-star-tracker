@@ -22,7 +22,9 @@ async function init() {
     const { default: pg } = await import("pg");
     const client = new pg.Client({
       connectionString: config.databaseUrl,
-      ...(config.ssl ? { ssl: config.ssl } : {}),
+      // 注意用 !== null/undefined：显式 ssl:false（PGSSLMODE=disable）也要传给 pg，
+      // 否则会被连接串里的 sslmode 覆盖。
+      ...(config.ssl === null || config.ssl === undefined ? {} : { ssl: config.ssl }),
     });
     await client.connect();
     backend = client;

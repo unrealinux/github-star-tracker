@@ -26,7 +26,7 @@ npm test               # SQLite
 npm run test:postgres  # PostgreSQL（内嵌 PGlite，无需服务器）
 ```
 
-**完成标准**：两次都是 `# fail 0`，且两边的 `# tests` **数字相同**（当前为 208）。
+**完成标准**：两次都是 `# fail 0`，且两边的 `# tests` **数字相同**（当前为 214）。
 数字不同或有一边失败，就说明存在后端相关差异，先解决它再继续。
 
 ---
@@ -86,7 +86,7 @@ node --test tests/frontend/*.test.js  # 前端冒烟 + 交互（注意：不在 
 ```
 
 **完成标准**：全部文件都是 `# fail 0`（只有 `core.test.js` 与 `api.test.js` 真正打到外部 PostgreSQL），
-且所有文件用例数**之和**与 Step 1 的总数一致（当前 208）。
+且所有文件用例数**之和**与 Step 1 的总数一致（当前 214）。
 （`tests/frontend/*.test.js` 不计入上述总数：单独跑、依赖真实 Chrome，不参与「两后端一致」对比。）
 任一边红，就是真实 PostgreSQL 上的真问题——此时错误信息应能直接定位（见「已知坑」第 2 条）。
 
@@ -264,7 +264,8 @@ diff -rq /tmp/cmp-lite /tmp/cmp-pg
 
 - 前端在浏览器中的**压力/兼容性**行为（`tests/frontend/*.test.js` 只跑冒烟 + 主要交互，不代表全量回归）。
 - 真实 PostgreSQL 的**版本差异**：这里只跑了 `postgres:16-alpine`。其它大版本请各跑一次 Step 3。
-- SSL、PG 角色/权限模型、多连接并发：`DATABASE_URL` 里的 `sslmode` 与受限角色未验证。
+- SSL：CI 已用自签证书起 TLS 版 PG，验证 `PGSSLMODE=require` 确实加密、`disable` 为明文；`verify-ca`/`verify-full` 的证书链校验未在 CI 跑（只有纯函数单测）。
+- PG 角色/权限模型、多连接并发：受限角色与并发连接未验证。
 - `pg_dump` / 备份恢复链路（备份现已覆盖：SQLite `VACUUM INTO`、外部 PG `pg_dump`、PGlite JSON；**恢复**仍只验证过 JSON 导入，`pg_restore` 未验）。
 
 ---

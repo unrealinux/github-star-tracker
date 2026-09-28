@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPostgresDriver } from "../src/dbdriver/postgres.js";
+import { createPostgresDriver, resolvePgSsl } from "../src/dbdriver/postgres.js";
 
 let db;
 let tmp;
@@ -59,5 +59,40 @@ describe("PostgreSQL 驱动错误上报", () => {
     }
     assert.notEqual(msg, "undefined", "错误信息被吞成了 undefined");
     assert.ok(msg.trim().length > 0, "错误信息不应为空");
+  });
+});
+
+describe("PostgreSQL SSL 开关解析（resolvePgSsl）", () => {
+  test("未设 PGSSLMODE 时不干预（交给连接串）", () => {
+    assert.equal(resolvePgSsl({}), null);
+    assert.equal(resolvePgSsl({ DATABASE_URL: "postgres://x/y?sslmode=require" }), null);
+  });
+
+  test("disable → 显式拒绝 TLS", () => {
+    assert.equal(resolvePgSsl({ PGSSLMODE: "disable" }), false);
+    assert.equal(resolvePgSsl({ PGSSLMODE: "DISABLE" }), false);
+  });
+
+  test("require / no-verify → 加密但不校验证书（自签可用）", () => {
+    assert.deepEqual(resolvePgSsl({ PGSSLMODE: "require" }), { rejectUnauthorized: false });
+    assert.deepEqual(resolvePgSsl({ PGSSLMODE: "no-verify" }), { rejectUnauthorized: false });
+  });
+
+  test("verify-full → 校验证书，PGSSLROOTCERT 指定 CA", () => {
+    const ssl = resolvePgSsl(
+      { PGSSLMODE: "verify-full", PGSSLROOTCERT: "/tmp/ca.pem" },
+      { readFile: (p) => `CA:${p}` },
+    );
+    assert.deepEqual(ssl, { rejectUnauthorized: true, ca: "CA:/tmp/ca.pem" });
+    // 不指定 CA 时也能回落到系统 CA
+    assert.deepEqual(resolvePgSsl({ PGSSLMODE: "verify-ca" }), { rejectUnauthorized: true });
+  });
+
+  test("DATABASE_SSLMODE 作为回退变量", () => {
+    assert.deepEqual(resolvePgSsl({ DATABASE_SSLMODE: "require" }), { rejectUnauthorized: false });
+  });
+
+  test("未知取值报错，避免静默降级成明文", () => {
+    assert.throws(() => resolvePgSsl({ PGSSLMODE: "banana" }), /未知的 PGSSLMODE/);
   });
 });

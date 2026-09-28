@@ -80,7 +80,7 @@ GitHub 星标追踪工具 —— 实时监控热门仓库的星数变化，支�
 - 结构化日志（文本 / JSON）
 - 优雅关闭
 - Docker 部署支持
-- **可选 PostgreSQL 后端**（外部 `pg` 或内嵌 PGlite，附 SQLite 数据迁移脚本）
+- **可选 PostgreSQL 后端**（外部 `pg` 或内嵌 PGlite，附 SQLite 数据迁移脚本；`PGSSLMODE` 支持 TLS / 证书校验）
 - 默认零外部数据库依赖（使用 Node 内置 `node:sqlite`）
 
 ## 🧱 技术栈
@@ -116,6 +116,10 @@ npm start
 | `CRON_SCHEDULE` | 定时抓取的 cron 表达式 | `0 9 * * *`（每天 9:00） |
 | `API_KEY` | 若设置，则所有 `/api/*` 需要该密钥 | 空（不启用认证） |
 | `FEED_TOKEN` | 只读订阅令牌，用于 RSS URL（`?token=`），权限仅限 `/api/feed/*` | 空 |
+| `DB_DRIVER` | 设为 `postgres` 启用 PostgreSQL 后端 | `sqlite` |
+| `DATABASE_URL` | 外部 PostgreSQL 连接串（可带 `?sslmode=`）；不设则用内嵌 PGlite | 空 |
+| `PGSSLMODE` | PG 的 TLS 模式：`disable` / `require` / `no-verify` / `verify-ca` / `verify-full` | 空（听连接串） |
+| `PGSSLROOTCERT` | `verify-ca` / `verify-full` 时的 CA 证书路径 | 空 |
 | `TRUST_PROXY` | 反代部署时设为 `true` 或 `loopback`，使限流/日志取到真实 IP | 空（关闭） |
 | `VAPID_SUBJECT` | Web Push 的 VAPID `sub` 字段（一般为 `mailto:you@example.com`）| `mailto:admin@example.com` |
 | `LOG_LEVEL` | 日志级别：`debug`/`info`/`warn`/`error` | `info` |

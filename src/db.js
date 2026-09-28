@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDriver, driverName, isPostgres } from "./dbdriver/index.js";
+import { resolvePgSsl } from "./dbdriver/postgres.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = process.env.DB_DIR || join(__dirname, "..", "data");
@@ -14,6 +15,7 @@ export const db = createDriver({
   sqlitePath: dbPath,
   pgDataDir: process.env.PG_DATA_DIR || join(dataDir, "pg"),
   databaseUrl: process.env.DATABASE_URL || "",
+  pgSsl: resolvePgSsl(),
 });
 
 export { driverName, isPostgres };

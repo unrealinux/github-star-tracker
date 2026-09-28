@@ -96,6 +96,31 @@ jobs:
           DATABASE_URL: postgres://gst:gst@127.0.0.1:5432/gst_api
         run: node --test tests/api.test.js
 
+      # 服务容器带不了证书，这里用 docker run 起一个带自签证书的 TLS 版 PostgreSQL
+      - name: 启动 TLS 版 PostgreSQL
+        run: |
+          mkdir -p .ci-certs
+          openssl req -new -x509 -days 1 -nodes -text -subj "/CN=127.0.0.1" \
+            -out .ci-certs/server.crt -keyout .ci-certs/server.key
+          chmod 644 .ci-certs/server.crt .ci-certs/server.key
+          docker run -d --name gst-pg-tls \
+            -e POSTGRES_USER=gst -e POSTGRES_PASSWORD=gst -e POSTGRES_DB=gst \
+            -v "$PWD/.ci-certs:/certs:ro" -p 5433:5432 \
+            postgres:16-alpine \
+            -c ssl=on -c ssl_cert_file=/certs/server.crt -c ssl_key_file=/certs/server.key
+          for i in $(seq 1 60); do
+            docker exec gst-pg-tls pg_isready -U gst -d gst >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec gst-pg-tls pg_isready -U gst -d gst
+
+      - name: 验证 PG SSL（require=加密 / disable=明文）
+        env:
+          DB_DRIVER: postgres
+        run: |
+          node scripts/verify-pg-ssl.mjs "postgres://gst:gst@127.0.0.1:5433/gst" require true
+          node scripts/verify-pg-ssl.mjs "postgres://gst:gst@127.0.0.1:5433/gst" disable false
+
   # 前端冒烟：真实 Chrome 无头加载页面，断言无 JS 异常 / CSP 违规 / 资源失败
   frontend:
     name: 前端冒烟（Chrome）

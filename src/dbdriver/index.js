@@ -15,9 +15,9 @@ const raw = (process.env.DB_DRIVER || "sqlite").toLowerCase();
 export const driverName = ["postgres", "postgresql", "pg"].includes(raw) ? "postgres" : "sqlite";
 export const isPostgres = driverName === "postgres";
 
-export function createDriver({ sqlitePath, pgDataDir, databaseUrl = "" } = {}) {
+export function createDriver({ sqlitePath, pgDataDir, databaseUrl = "", pgSsl = null } = {}) {
   if (isPostgres) {
-    const db = createPostgresDriver({ databaseUrl, dataDir: pgDataDir });
+    const db = createPostgresDriver({ databaseUrl, dataDir: pgDataDir, ssl: pgSsl });
     migratePostgres(db);
     return db;
   }

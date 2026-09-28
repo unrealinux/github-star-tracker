@@ -10,7 +10,33 @@
  */
 import { Worker, MessageChannel, receiveMessageOnPort } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { translate } from "./translate.js";
+
+/**
+ * 把 libpq 风格的 PGSSLMODE / PGSSLROOTCERT 解析成 node-postgres 的 ssl 选项。
+ *  - 未设 PGSSLMODE → 返回 null（不干预，交给 DATABASE_URL 里的 sslmode）
+ *  - disable               → false（显式拒绝 TLS）
+ *  - require/no-verify/prefer/allow → { rejectUnauthorized:false }（只加密、不校验证书，自签可用）
+ *  - verify-ca/verify-full → { rejectUnauthorized:true, ca? }（PGSSLROOTCERT 指定 CA 文件）
+ */
+export function resolvePgSsl(env = process.env, { readFile = (p) => readFileSync(p, "utf8") } = {}) {
+  const mode = String(env.PGSSLMODE || env.DATABASE_SSLMODE || "")
+    .trim()
+    .toLowerCase();
+  if (!mode) return null;
+  if (mode === "disable") return false;
+  if (["allow", "prefer", "require", "no-verify"].includes(mode)) return { rejectUnauthorized: false };
+  if (mode === "verify-ca" || mode === "verify-full") {
+    const ssl = { rejectUnauthorized: true };
+    const caPath = env.PGSSLROOTCERT || env.DATABASE_SSL_CA || "";
+    if (caPath) ssl.ca = readFile(caPath);
+    return ssl;
+  }
+  throw new Error(
+    `未知的 PGSSLMODE: ${mode}（可用 disable / require / no-verify / verify-ca / verify-full）`,
+  );
+}
 
 const WORKER_URL = new URL("./postgres.worker.js", import.meta.url);
 const DEFAULT_TIMEOUT_MS = 60_000;
