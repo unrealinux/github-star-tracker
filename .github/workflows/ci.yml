@@ -113,11 +113,23 @@ jobs:
             -c ssl=on -c ssl_cert_file=/certs/server.crt -c ssl_key_file=/certs/server.key
           ready=""
           for i in $(seq 1 60); do
-            if docker exec gst-pg-tls pg_isready -U gst -d gst >/dev/null 2>&1; then ready=1; break; fi
+            # 必须带 -h 127.0.0.1 强制走 TCP：initdb 临时服务只在 unix socket 上监听，
+            # 否则会在初始化完成前误判为 ready，随后连接被断（Connection terminated）
+            if docker exec gst-pg-tls pg_isready -h 127.0.0.1 -p 5432 -U gst -d gst >/dev/null 2>&1; then ready=1; break; fi
             sleep 1
           done
           if [ -z "$ready" ]; then
             echo "TLS PG 未就绪，容器日志："
+            docker logs gst-pg-tls 2>&1 | tail -40
+            exit 1
+          fi
+          # 再做一次真实查询，确认正式服务已在 TCP 上服务
+          for i in $(seq 1 30); do
+            if docker exec gst-pg-tls psql -h 127.0.0.1 -p 5432 -U gst -d gst -tAc "select 1" >/dev/null 2>&1; then ready=2; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "2" ]; then
+            echo "TLS PG TCP 查询未成功，容器日志："
             docker logs gst-pg-tls 2>&1 | tail -40
             exit 1
           fi
