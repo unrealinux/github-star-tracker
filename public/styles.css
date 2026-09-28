@@ -1660,3 +1660,38 @@ body {
   text-align: center;
   color: var(--text-2);
 }
+
+/* ── 每个 Tab 顶部的「怎么算的」说明（原生 <details>，无需 JS）── */
+.tab-help {
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+.tab-help > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  color: var(--text-2);
+  user-select: none;
+}
+.tab-help > summary:hover {
+  color: var(--text);
+}
+.tab-help[open] > summary {
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.tab-help ul {
+  margin: 8px 0;
+  padding: 0 16px 0 32px;
+  color: var(--text-2);
+}
+.tab-help li {
+  margin: 4px 0;
+}
+.tab-help b,
+.tab-help code {
+  color: var(--text);
+}

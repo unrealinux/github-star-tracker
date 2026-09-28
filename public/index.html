@@ -164,6 +164,21 @@
 
     <!-- ===== 仓库列表 ===== -->
     <section id="tab-repos" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-repos">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>
+            数据来源：GitHub 搜索（可用自定义语法，如 <code>language:rust stars:&gt;5000</code>）+
+            你添加的自定义仓库；每次刷新为每个仓库写一条快照。
+          </li>
+          <li>筛选：最低星数、增速下限、语言、关键词；<b>增速</b>按所选窗口（近24h / 近7天 / 近30天）。</li>
+          <li>排序：星标 / 当前指标 / 日增 / 最新收录 / 名称 / 语言；分页在服务端完成。</li>
+          <li>
+            <b>增长口径</b
+            >：以「窗口起点之前最近的一条快照」为基准。若采集中断，会按真实跨度标注（如「近5天」），不会谎报成「近24h」。
+          </li>
+        </ul>
+      </details>
       <section class="controls">
         <label
           >最低星数 <input id="min-stars" type="number" min="0" step="1" placeholder="例如 1000"
@@ -265,6 +280,14 @@
 
     <!-- ===== 收藏 ===== -->
     <section id="tab-favorites" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-favorites">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>收藏用于把关注的仓库单独列出；多用户模式下<b>按用户隔离</b>，单用户模式共享。</li>
+          <li>收藏不改变采集或算法，只是筛选入口。</li>
+          <li>点卡片可打开详情：走势、项目画像、告警阈值、相似项目。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>⭐ 我的收藏</h2>
         <span id="fav-count" class="list-count"></span>
@@ -275,6 +298,19 @@
 
     <!-- ===== 自定义 ===== -->
     <section id="tab-custom" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-custom">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>
+            追踪任意 <code>owner/repo</code>，不受搜索范围限制；添加后与搜索到的仓库共用同一套快照与增长算法。
+          </li>
+          <li>支持备注，便于分组识别。</li>
+          <li>
+            <b>回填历史</b>：用 GitHub stargazers 的
+            <code>starred_at</code> 反推星标曲线（近似值，无法感知取关）。
+          </li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>📌 自定义追踪</h2>
         <button id="backfill-btn" class="btn btn-secondary">📜 回填自定义仓库历史</button>
@@ -291,6 +327,14 @@
       role="tabpanel"
       aria-labelledby="tab-btn-language-trend"
     >
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>按语言聚合该语言下所有仓库的<b>当前总星数</b>与<b>窗口内总增长</b>。</li>
+          <li>排序：窗口内总增长降序，其次总星数。</li>
+          <li>语言取仓库的 <code>language</code> 字段（GitHub 判定的主语言）。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>🌍 多语言增长趋势</h2>
         <select id="trend-window" class="btn btn-secondary" aria-label="时间窗口">
@@ -304,6 +348,14 @@
 
     <!-- ===== 排名变化（P1-5）===== -->
     <section id="tab-rank" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-rank">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li><b>当前排名</b>＝按星数降序的座次；<b>窗口前排名</b>＝用「窗口起点前最近一条快照」重排。</li>
+          <li>变化 ＝ 窗口前名次 − 当前名次（正数＝上升）。</li>
+          <li>上升榜 / 下滑榜各取前 N；只统计窗口前已有快照的仓库。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>📈 排名变化</h2>
         <select id="rank-window" class="btn btn-secondary" aria-label="时间窗口">
@@ -326,6 +378,14 @@
 
     <!-- ===== 🏆 排行榜 ===== -->
     <section id="tab-leaderboard" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-leaderboard">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>左栏：<b>总星数</b> Top N；右栏：<b>日均新增</b> Top N。</li>
+          <li>日均新增用<b>近 7 天快照</b>求平均（比单次差值稳定），窗口可切换。</li>
+          <li>并列名次用仓库 id 打破，保证 SQLite / PostgreSQL 结果一致。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>🏆 排行榜</h2>
         <div class="lb-controls">
@@ -373,6 +433,17 @@
 
     <!-- ===== 🚀 爆发榜 + ⏪ 历史回放 ===== -->
     <section id="tab-surge" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-surge">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>核心指标：<b>加速度</b> ＝ 近 3 天日均日增 − 更早期日均日增（增长的二阶导）。</li>
+          <li>
+            判定「正在起飞」：近 3 天日增为正，且（此前为正时）环比 ≥ 1.8 倍，或（此前≈0）近 3 天日均 ≥ 5/天。
+          </li>
+          <li>至少需要 3 个自然日的快照才参与；「热度衰减」列出加速度为负的项目。</li>
+          <li>同页的<b>历史回放</b>可用任意时刻的快照重建当时的榜单。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>🚀 爆发榜（增速加速度）</h2>
         <div class="lb-controls">
@@ -445,6 +516,14 @@
 
     <!-- ===== ⚖️ 仓库对比 ===== -->
     <section id="tab-compare" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-compare">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>最多 8 个仓库叠加对比。</li>
+          <li>可选<b>按百分比变化</b>归一化（各自起点＝100，便于不同量级比较）或<b>对数轴</b>。</li>
+          <li>交叉预测：线性回归估计「A 追上 B」所需天数，并给出 R² 置信度。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>⚖️ 仓库对比</h2>
         <span class="muted" style="font-size: 12px">最多同时对比 8 个仓库，可按百分比变化归一化叠加</span>
@@ -484,6 +563,21 @@
 
     <!-- ===== 🔎 信号 ===== -->
     <section id="tab-signals" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-signals">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>
+            <b>异常检测</b>：对每个仓库的日增序列算 z-score（相对自身历史），|z| ≥ 2.5
+            视为异常，区分「爆增」与「掉星」，而不是只看绝对增量。
+          </li>
+          <li>
+            <b>黑马榜</b>：按「日均涨粉百分比」（日增 ÷
+            当前星数）排序；星数上限默认取追踪集<b>中位数</b>，并要求收录 ≥ 14 天。
+          </li>
+          <li><b>事件聚类</b>：同一天 ≥ 3 个仓库同时异常 → 归为一波趋势，用主语言 + 描述共同词命名。</li>
+          <li><b>告警回测</b>：用历史快照重放规则，统计会触发多少次；与线上告警共用同一套判定逻辑。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>🔎 异常检测（z-score）</h2>
         <div class="lb-controls">
@@ -596,6 +690,19 @@
 
     <!-- ===== 🧭 指数与生态 ===== -->
     <section id="tab-indices" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-indices">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li><b>自定义指数</b>：按语言 / 星数 / 关键词选一批仓库，合成一条归一化曲线。</li>
+          <li>
+            两种权重：<b>等权</b>（各仓库各自以起点＝100 后求平均）、<b>星数加权</b>（整体总星数相对起点）。
+          </li>
+          <li>
+            <b>生态 / Topic</b>：用 GitHub 搜索语法（如
+            <code>topic:llm</code>）定义，刷新时抓取成员并跟踪整体走势。
+          </li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>🧭 自定义指数</h2>
         <span class="muted" style="font-size: 12px"
@@ -688,6 +795,16 @@
 
     <!-- ===== 📉 全局趋势 ===== -->
     <section id="tab-overview" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-overview">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li><b>每日总星数</b>：每个仓库当天最后一条快照之和。</li>
+          <li><b>新收录</b>：仓库首次出现日期；<b>快照活动</b>：每天写入的快照条数。</li>
+          <li>
+            <b>数据健康</b>：覆盖率（有 ≥2 条快照的仓库占比）、平均快照数、最早快照、失效/已删除仓库数。
+          </li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>📉 全局趋势</h2>
         <div class="lb-controls">
@@ -728,6 +845,17 @@
 
     <!-- ===== 📦 外部指标（P3）===== -->
     <section id="tab-external" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-external">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>
+            追踪 GitHub 之外的公开指标：npm / PyPI 周下载、Docker 拉取、crates 下载、Hacker News
+            提及、Homebrew 30 天安装、RubyGems / NuGet 下载、Open VSX 安装。
+          </li>
+          <li>可给每个数据源设<b>最小刷新间隔</b>（小时），慢变指标不必每轮重抓。</li>
+          <li>增长口径与仓库一致（窗口基准），单位随数据源。</li>
+        </ul>
+      </details>
       <section class="list-header">
         <h2>📦 外部指标追踪</h2>
         <div class="lb-controls">
@@ -752,6 +880,15 @@
 
     <!-- ===== 设置 ===== -->
     <section id="tab-settings" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-settings">
+      <details class="tab-help">
+        <summary>ℹ️ 这个页面怎么算的</summary>
+        <ul>
+          <li>
+            这里的设置写入数据库，<b>优先于 <code>.env</code> 的默认值</b>。
+          </li>
+          <li>集中管理：采集范围 / 告警与推送 / 访问控制与用户 / 数据导入导出。</li>
+        </ul>
+      </details>
       <section class="settings-section">
         <h2>⚙️ 基本设置</h2>
         <div class="setting-row">
