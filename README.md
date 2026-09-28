@@ -120,6 +120,8 @@ npm start
 | `DATABASE_URL` | 外部 PostgreSQL 连接串（可带 `?sslmode=`）；不设则用内嵌 PGlite | 空 |
 | `PGSSLMODE` | PG 的 TLS 模式：`disable` / `require` / `no-verify` / `verify-ca` / `verify-full` | 空（听连接串） |
 | `PGSSLROOTCERT` | `verify-ca` / `verify-full` 时的 CA 证书路径 | 空 |
+| `SESSION_TTL_DAYS` | 登录会话有效期（天，最小 1） | `30` |
+| `GST_ENV_FILE` | 自定义 `.env` 路径（默认仓库根目录 `.env`） | 空 |
 | `TRUST_PROXY` | 反代部署时设为 `true` 或 `loopback`，使限流/日志取到真实 IP | 空（关闭） |
 | `VAPID_SUBJECT` | Web Push 的 VAPID `sub` 字段（一般为 `mailto:you@example.com`）| `mailto:admin@example.com` |
 | `LOG_LEVEL` | 日志级别：`debug`/`info`/`warn`/`error` | `info` |
@@ -166,6 +168,8 @@ curl -X POST http://localhost:3001/api/auth/register \
 ```
 
 之后：管理员在「设置 → 👥 用户管理」添加成员；成员用用户名/密码登录，只能看到自己的收藏、自定义仓库、指数、追踪、视图、告警与推送订阅。
+
+> 口令至少 **8 位**；会话有效期默认 30 天（`SESSION_TTL_DAYS` 可调，最小 1 天）。修改口令会使该用户已签发的会话立即失效。
 
 ### 运行时设置（页面「⚙️ 设置」Tab）
 

@@ -5,8 +5,10 @@
  */
 import crypto from "node:crypto";
 
-export const SESSION_TTL_MS = 30 * 24 * 3600 * 1000; // 30 天
-export const MIN_PASSWORD_LENGTH = 6;
+// 会话有效期：可用 SESSION_TTL_DAYS 覆盖（默认 30 天，最小 1 天）
+const SESSION_TTL_DAYS = Math.max(1, Number(process.env.SESSION_TTL_DAYS) || 30);
+export const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 3600 * 1000;
+export const MIN_PASSWORD_LENGTH = 8;
 
 export function hashPassword(password) {
   const pwd = String(password ?? "");

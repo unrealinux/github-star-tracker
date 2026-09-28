@@ -2219,7 +2219,9 @@ describe("认证：口令哈希与会话（第七批）", () => {
 
   test("过短口令被拒绝", async () => {
     const { hashPassword } = await import("../src/auth.js");
-    assert.throws(() => hashPassword("123"), /至少 6 位/);
+    assert.throws(() => hashPassword("123"), /至少 8 位/);
+    assert.throws(() => hashPassword("1234567"), /至少 8 位/, "7 位仍应被拒");
+    assert.ok(hashPassword("12345678"), "8 位应通过");
   });
 
   test("会话创建/校验/过期/删除", async () => {

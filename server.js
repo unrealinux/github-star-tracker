@@ -1,3 +1,4 @@
+import "./src/env.js";
 import express from "express";
 import crypto from "node:crypto";
 import cron from "node-cron";
@@ -94,9 +95,6 @@ import { fetchRepoDetails, getLastQuota, getTokenState, checkToken } from "./src
 import { logger } from "./src/logger.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-try {
-  process.loadEnvFile(join(__dirname, ".env"));
-} catch {}
 
 const app = express();
 
