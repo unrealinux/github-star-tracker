@@ -265,8 +265,8 @@ diff -rq /tmp/cmp-lite /tmp/cmp-pg
 - 前端在浏览器中的**压力/兼容性**行为（`tests/frontend/*.test.js` 只跑冒烟 + 主要交互 + 登录流程，不代表全量回归）。
 - 真实 PostgreSQL 的**版本差异**：这里只跑了 `postgres:16-alpine`。其它大版本请各跑一次 Step 3。
 - SSL：CI 已用自签证书起 TLS 版 PG，验证 `PGSSLMODE=require` 确实加密、`disable` 为明文；`verify-ca`/`verify-full` 的证书链校验未在 CI 跑（只有纯函数单测）。
-- PG 角色/权限模型、多连接并发：受限角色与并发连接未验证。
-- `pg_dump` / 备份恢复链路（备份现已覆盖：SQLite `VACUUM INTO`、外部 PG `pg_dump`、PGlite JSON；**恢复**仍只验证过 JSON 导入，`pg_restore` 未验）。
+- PG 角色/权限模型：非超级用户（库 owner）已覆盖（备份恢复链路用 `gst_app` 跑）；仅有部分表权限的「受限授权」角色、多连接并发仍未验证。
+- `pg_dump` → `pg_restore` 恢复链路已在 CI 覆盖（custom 格式，非超级用户角色）；备份本身三后端已覆盖（SQLite `VACUUM INTO`、外部 PG `pg_dump`、PGlite JSON）。跨 PG 大版本的 `pg_restore` 未验。
 
 ---
 

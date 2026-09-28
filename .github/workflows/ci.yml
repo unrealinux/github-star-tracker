@@ -142,6 +142,25 @@ jobs:
           node scripts/verify-pg-ssl.mjs "postgres://gst:gst@127.0.0.1:5433/gst" require true
           node scripts/verify-pg-ssl.mjs "postgres://gst:gst@127.0.0.1:5433/gst" disable false
 
+      # 备份 → 恢复链路：建一个**非超级用户**角色 + 两个归它所有的库，兼顾受限角色
+      - name: PG 备份 → 恢复链路（含受限角色）
+        env:
+          PGPASSWORD: gst
+        run: |
+          psql -h 127.0.0.1 -U gst -d gst -v ON_ERROR_STOP=1 -c "CREATE ROLE gst_app LOGIN PASSWORD 'gst';"
+          psql -h 127.0.0.1 -U gst -d gst -v ON_ERROR_STOP=1 -c "CREATE DATABASE gst_restore_src OWNER gst_app;"
+          psql -h 127.0.0.1 -U gst -d gst -v ON_ERROR_STOP=1 -c "CREATE DATABASE gst_restore_dst OWNER gst_app;"
+
+          SRC="postgres://gst_app:gst@127.0.0.1:5432/gst_restore_src"
+          DST="postgres://gst_app:gst@127.0.0.1:5432/gst_restore_dst"
+
+          DUMP=$(DB_DRIVER=postgres DATABASE_URL="$SRC" node scripts/verify-pg-backup.mjs seed | sed -n 's/^dump=//p')
+          test -n "$DUMP" || { echo "未产出 dump"; exit 1; }
+          echo "dump=$DUMP"
+
+          pg_restore --no-owner --no-acl --dbname="$DST" "$DUMP"
+          DB_DRIVER=postgres DATABASE_URL="$DST" node scripts/verify-pg-backup.mjs verify
+
   # 前端冒烟：真实 Chrome 无头加载页面，断言无 JS 异常 / CSP 违规 / 资源失败
   frontend:
     name: 前端冒烟（Chrome）
