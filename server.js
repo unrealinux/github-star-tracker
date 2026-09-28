@@ -99,12 +99,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 // ── 安全响应头（零依赖手写，避免引入 helmet）──────────────────────
-// script-src 仅 'self'（全站只有 /app.js，无内联脚本）；style-src 保留
-// 'unsafe-inline'（页面用了 style="..."）。session 存 localStorage，CSP 抬高 XSS 门槛。
+// script-src 仅 'self'（全站只有 /app.js，无内联脚本）。
+// 样式拆开：style-src-elem 只允许同源（/styles.css），禁止注入 <style>；
+// style-src-attr 仍保留 'unsafe-inline'——多处动态生成的 HTML 依赖
+// style="width:..%/color:.."，改成 CSSOM/类名成本高、收益低（内容均已转义）。
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
+  "style-src-elem 'self'",
+  "style-src-attr 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
   "connect-src 'self'",

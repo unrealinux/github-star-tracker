@@ -240,6 +240,8 @@ describe("公开端点", () => {
     assert.match(csp, /default-src 'self'/);
     assert.match(csp, /script-src 'self'/);
     assert.match(csp, /frame-ancestors 'none'/);
+    assert.match(csp, /style-src-elem 'self'/);
+    assert.match(csp, /style-src-attr 'unsafe-inline'/);
     assert.equal(res.headers.get("x-content-type-options"), "nosniff");
     assert.equal(res.headers.get("x-frame-options"), "DENY");
     assert.equal(res.headers.get("referrer-policy"), "same-origin");
