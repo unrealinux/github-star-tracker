@@ -312,6 +312,8 @@ app.get("/metrics", (_req, res) => {
 });
 
 // ── P2-9: 简易速率限制（针对消耗 GitHub 配额的端点）────────────────
+// 计数存在进程内存里：单实例部署够用；多实例部署时各副本各算一份、重启清零，
+// 需在反向代理层做统一限流（见 README「安全建议」）。
 const rateBuckets = new Map();
 let rateLimitSeq = 0;
 function rateLimit({ windowMs = 60_000, max = 6, name } = {}) {
