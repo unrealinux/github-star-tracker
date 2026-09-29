@@ -16,6 +16,7 @@ import {
   fetchCustomRepo,
   fetchRepoDetails,
   searchTopRepos,
+  trendingQuery,
   checkToken,
   getTokenState,
   resetTokenState,
@@ -149,5 +150,23 @@ describe("checkToken 主动探测", () => {
     await checkToken("ghp_bad"); // 探测必须仍带 token，否则永远测不出问题
     assert.ok(calls.length > before, "应真的发出探测请求");
     assert.equal(calls.at(-1).auth, "Bearer ghp_bad", "探测必须强制带上 token");
+  });
+});
+
+describe("Trending 近似查询（trendingQuery）", () => {
+  test("按近 N 天新建 + 最低星数拼 GitHub 搜索语法", () => {
+    const now = Date.parse("2026-09-28T00:00:00Z");
+    assert.equal(
+      trendingQuery({ days: 30, minStars: 50, now }),
+      "created:>=2026-08-29 stars:>=50",
+      "日期应为 now − days 的 YYYY-MM-DD",
+    );
+    assert.equal(trendingQuery({ days: 7, minStars: 0, now }), "created:>=2026-09-21 stars:>=0");
+  });
+
+  test("参数兜底：days 最小 1、minStars 不转负", () => {
+    const now = Date.parse("2026-09-28T00:00:00Z");
+    assert.equal(trendingQuery({ days: 0, minStars: -5, now }), "created:>=2026-09-27 stars:>=0");
+    assert.equal(trendingQuery({ now }), "created:>=2026-08-29 stars:>=50", "默认 30 天 / 50 星");
   });
 });

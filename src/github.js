@@ -169,6 +169,19 @@ function mapRepo(it) {
 }
 
 /**
+ * GitHub Trending 的近似查询：近 N 天新建、且已有一定星数的仓库，按星数排序。
+ * GitHub Trending 无官方 API，这里用搜索语法近似（走现有 token / 配额）。
+ */
+export function trendingQuery({ days = 30, minStars = 50, now = Date.now() } = {}) {
+  const d = Number(days);
+  const m = Number(minStars);
+  const since = new Date(now - Math.max(1, Number.isFinite(d) ? d : 30) * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  return `created:>=${since} stars:>=${Math.max(0, Number.isFinite(m) ? m : 50)}`;
+}
+
+/**
  * 搜索 GitHub 热门仓库。
  * @param {string} query 自定义搜索语法（如 "language:javascript stars:>1000"），留空则用 stars:>=minStars
  * @returns {{ items: Array, rate: object|null }}

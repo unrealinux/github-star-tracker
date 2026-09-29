@@ -6,6 +6,7 @@ GitHub 星标追踪工具 —— 实时监控热门仓库的星数变化，支�
 
 ### 数据采集
 - 搜索 GitHub 热门仓库（支持自定义搜索语法，如 `language:rust stars:>5000`）
+- **「新且热」发现源** —— 用搜索语法近似 GitHub Trending（`created:>=近N天 stars:>=M`），让近期冒头的新仓库进入采集，从而出现在「日均新增排行」里（可在设置中开关/调参）
 - **自定义仓库追踪** —— 追踪任意 `owner/repo`，不受搜索范围限制
 - **📦 外部指标追踪** —— 同一套引擎追踪 GitHub 以外的公开指标：
   - npm / PyPI 周下载量、Docker Hub 拉取量、crates.io 下载量
@@ -122,6 +123,9 @@ npm start
 | `PGSSLMODE` | PG 的 TLS 模式：`disable` / `require` / `no-verify` / `verify-ca` / `verify-full` | 空（听连接串） |
 | `PGSSLROOTCERT` | `verify-ca` / `verify-full` 时的 CA 证书路径 | 空 |
 | `SESSION_TTL_DAYS` | 登录会话有效期（天，最小 1） | `30` |
+| `TRENDING_ENABLED` | 是否启用「新且热」发现源（`0` 关闭） | `1` |
+| `TRENDING_DAYS` | 发现源只看近 N 天新建的仓库 | `30` |
+| `TRENDING_MIN_STARS` | 发现源的最低星数门槛 | `50` |
 | `LEADERBOARD_MAX` | 排行榜类接口返回条数上限 | `200` |
 | `GST_ENV_FILE` | 自定义 `.env` 路径（默认仓库根目录 `.env`） | 空 |
 | `TRUST_PROXY` | 反代部署时设为 `true` 或 `loopback`，使限流/日志取到真实 IP | 空（关闭） |

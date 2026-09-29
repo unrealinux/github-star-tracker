@@ -449,6 +449,9 @@ function publicSettings(userId = 0) {
     alertThreshold: num("alertThreshold", 50),
     autoPollMinutes: num("autoPollMinutes", 0),
     searchQuery: s.searchQuery || "",
+    trendingEnabled: s.trendingEnabled !== "0",
+    trendingDays: num("trendingDays", 30),
+    trendingMinStars: num("trendingMinStars", 50),
     webhookUrl: s.webhookUrl || "",
     webhookType: s.webhookType || "generic",
     theme: s.theme || "dark",
@@ -573,6 +576,15 @@ app.put("/api/settings", (req, res) => {
     if (b.alertThreshold !== undefined) setSetting("alertThreshold", toNum(b.alertThreshold, 50));
     if (b.autoPollMinutes !== undefined) setSetting("autoPollMinutes", toNum(b.autoPollMinutes, 0));
     if (b.searchQuery !== undefined) setSetting("searchQuery", String(b.searchQuery).trim());
+    if (b.trendingEnabled !== undefined) setSetting("trendingEnabled", b.trendingEnabled ? "1" : "0");
+    if (b.trendingDays !== undefined) {
+      const n = Number(b.trendingDays);
+      setSetting("trendingDays", Number.isFinite(n) ? Math.min(365, Math.max(1, n)) : 30);
+    }
+    if (b.trendingMinStars !== undefined) {
+      const n = Number(b.trendingMinStars);
+      setSetting("trendingMinStars", Number.isFinite(n) ? Math.max(0, n) : 50);
+    }
     if (b.webhookUrl !== undefined) setSetting("webhookUrl", String(b.webhookUrl).trim());
     if (b.webhookType !== undefined)
       setSetting("webhookType", WEBHOOK_TYPES.includes(b.webhookType) ? b.webhookType : "generic");

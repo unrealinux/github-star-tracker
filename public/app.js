@@ -323,6 +323,9 @@ async function loadSettings() {
     if ($("set-auto-poll")) $("set-auto-poll").value = s.autoPollMinutes || 0;
     if ($("set-theme")) $("set-theme").value = s.theme || "dark";
     if ($("set-search-query")) $("set-search-query").value = s.searchQuery || "";
+    if ($("set-trending-enabled")) $("set-trending-enabled").checked = s.trendingEnabled !== false;
+    if ($("set-trending-days")) $("set-trending-days").value = s.trendingDays ?? 30;
+    if ($("set-trending-min-stars")) $("set-trending-min-stars").value = s.trendingMinStars ?? 50;
     if ($("set-webhook-url")) $("set-webhook-url").value = s.webhookUrl || "";
     if ($("set-webhook-type")) $("set-webhook-type").value = s.webhookType || "generic";
     if ($("set-alert-drop")) $("set-alert-drop").checked = Boolean(s.alertOnDrop);
@@ -2247,6 +2250,9 @@ on("save-settings", "click", async () => {
         alertThreshold: Number($("set-alert-threshold").value) || 50,
         autoPollMinutes: Number($("set-auto-poll").value) || 0,
         searchQuery: $("set-search-query")?.value || "",
+        trendingEnabled: Boolean($("set-trending-enabled")?.checked),
+        trendingDays: Number($("set-trending-days")?.value) || 30,
+        trendingMinStars: Number($("set-trending-min-stars")?.value) || 0,
         webhookUrl: $("set-webhook-url")?.value || "",
         webhookType: $("set-webhook-type")?.value || "generic",
         theme: $("set-theme").value,

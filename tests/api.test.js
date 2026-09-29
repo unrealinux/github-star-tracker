@@ -459,6 +459,30 @@ describe("运维健壮性端点（第四批）", () => {
     assert.match(s.sourceIntervals, /npm/);
   });
 
+  test("PUT /api/settings 接受 Trending 发现源设置（含范围限制）", async () => {
+    const res = await api("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trendingEnabled: true, trendingDays: 14, trendingMinStars: 120 }),
+    });
+    assert.equal(res.status, 200);
+    const s = (await res.json()).settings;
+    assert.equal(s.trendingEnabled, true);
+    assert.equal(s.trendingDays, 14);
+    assert.equal(s.trendingMinStars, 120);
+
+    // 越界值被夹到合理范围（days 1..365，minStars ≥ 0）
+    const clamped = await api("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trendingEnabled: false, trendingDays: 9999, trendingMinStars: -3 }),
+    });
+    const c = (await clamped.json()).settings;
+    assert.equal(c.trendingEnabled, false);
+    assert.equal(c.trendingDays, 365);
+    assert.equal(c.trendingMinStars, 0);
+  });
+
   test("GET /api/custom-repos 带 stale 字段", async () => {
     await api("/api/custom-repos", {
       method: "POST",

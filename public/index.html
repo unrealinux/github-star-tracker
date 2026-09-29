@@ -388,6 +388,10 @@
           <li>日均新增用<b>近 7 天快照</b>求平均（比单次差值稳定），窗口可切换。</li>
           <li>并列名次用仓库 id 打破，保证 SQLite / PostgreSQL 结果一致。</li>
           <li>下方<b>全站星标榜</b>列出全部仓库的完整名次（<b>不受「最低星数」筛选</b>，分页浏览）。</li>
+          <li>
+            右栏的日均新增还叠加了<b>「新且热」发现源</b>（近似 GitHub Trending）：近 N 天新建 + 至少 M
+            星的新仓库会进入采集，从而参与排行。
+          </li>
         </ul>
       </details>
       <section class="list-header">
@@ -913,6 +917,10 @@
             这里的设置写入数据库，<b>优先于 <code>.env</code> 的默认值</b>。
           </li>
           <li>集中管理：采集范围 / 告警与推送 / 访问控制与用户 / 数据导入导出。</li>
+          <li>
+            <b>「新且热」发现源</b>：勾选后按「近 N 天新建 + 至少 M 星」搜索，捕获 GitHub Trending
+            类的新晋热门（可用 <code>TRENDING_*</code> 环境变量改默认值）。
+          </li>
         </ul>
       </details>
       <section class="settings-section">
@@ -981,6 +989,14 @@
               placeholder="例如：language:rust stars:>1000 created:>2024-01-01"
             />
           </label>
+        </div>
+        <div class="setting-row">
+          <label
+            ><input id="set-trending-enabled" type="checkbox" /> 「新且热」发现源（近似 GitHub
+            Trending）</label
+          >
+          <label>近 <input id="set-trending-days" type="number" min="1" max="365" /> 天内新建</label>
+          <label>且至少 <input id="set-trending-min-stars" type="number" min="0" /> 星</label>
         </div>
         <button id="save-settings" class="btn btn-primary">保存设置</button>
       </section>

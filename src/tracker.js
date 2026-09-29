@@ -17,7 +17,8 @@ import {
   renameRepo,
   listUsers,
 } from "./db.js";
-import { searchTopRepos, fetchCustomRepo } from "./github.js";
+import { searchTopRepos, fetchCustomRepo, trendingQuery } from "./github.js";
+import { logger } from "./logger.js";
 import { WINDOWS, windowOf, isoOffset, avgDailyGrowth } from "./windows.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -299,20 +300,56 @@ function snapshotAtMap(iso, field = "stars") {
 }
 
 // ── 刷新 ──────────────────────────────────────────────────────────
+/** 「新且热」发现源的配置（设置优先，回退到 TRENDING_* 环境变量） */
+export function trendingSettings() {
+  const enabled = (getSetting("trendingEnabled", process.env.TRENDING_ENABLED ?? "1") ?? "1") !== "0";
+  const days = Math.max(1, Number(getSetting("trendingDays", process.env.TRENDING_DAYS ?? 30)) || 30);
+  const minStars = Math.max(
+    0,
+    Number(getSetting("trendingMinStars", process.env.TRENDING_MIN_STARS ?? 50)) || 50,
+  );
+  return { enabled, days, minStars };
+}
+
+/** 抓取「新且热」仓库（近似 GitHub Trending）。失败不影响主刷新流程。 */
+async function collectTrending({ token }) {
+  const { enabled, days, minStars } = trendingSettings();
+  if (!enabled) return { items: [], rate: null };
+  try {
+    return await searchTopRepos({
+      token,
+      query: trendingQuery({ days, minStars }),
+      maxPages: 2,
+      perPage: 100,
+    });
+  } catch (e) {
+    logger.warn("Trending 发现源抓取失败", { error: e.message });
+    return { items: [], rate: null };
+  }
+}
+
 export async function refresh({ minStars, token }) {
   const query = getSetting("searchQuery", "") || "";
   const { items, rate } = await searchTopRepos({ minStars, token, query });
+
+  // 叠加「新且热」发现源：让近期冒头的新仓库进入采集，从而出现在日均新增排行里
+  const trending = await collectTrending({ token });
+  const merged = new Map();
+  for (const r of [...items, ...trending.items]) if (!merged.has(r.full_name)) merged.set(r.full_name, r);
+  const allItems = [...merged.values()];
+  const lastRate = trending.rate || rate;
+
   const now = new Date().toISOString();
   const alertTargets = getAlertTargets();
 
   // P2-8: 批量预取 id，避免逐条 SELECT
-  const idMap = getRepoIdMap(items.map((r) => r.full_name));
+  const idMap = getRepoIdMap(allItems.map((r) => r.full_name));
   const snapMap = loadRecentSnapshotMap(2);
   let fetched = 0;
 
   db.exec("BEGIN");
   try {
-    for (const r of items) {
+    for (const r of allItems) {
       upsertRepo.run(
         r.full_name,
         r.owner,
@@ -343,13 +380,14 @@ export async function refresh({ minStars, token }) {
     throw e;
   }
 
-  recordApiUsage(rate?.used ?? 0, rate?.limit ?? 60, now);
+  recordApiUsage(lastRate?.used ?? 0, lastRate?.limit ?? 60, now);
 
   return {
     upserted: fetched,
+    trending: trending.items.length,
     total: db.prepare("SELECT COUNT(*) c FROM repos").get().c,
     snapshots: db.prepare("SELECT COUNT(*) c FROM snapshots").get().c,
-    quota: rate ? { used: rate.used, limit: rate.limit } : null,
+    quota: lastRate ? { used: lastRate.used, limit: lastRate.limit } : null,
   };
 }
 
