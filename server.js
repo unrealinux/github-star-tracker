@@ -176,6 +176,8 @@ const API_KEY = process.env.API_KEY || "";
 const FEED_TOKEN = process.env.FEED_TOKEN || "";
 const DEFAULT_MIN_STARS = 1000;
 const DEFAULT_MIN_GROWTH = 0;
+// 排行榜 / 榜单类接口的返回条数上限（可用 LEADERBOARD_MAX 调大）
+const LEADERBOARD_MAX = Math.max(1, Number(process.env.LEADERBOARD_MAX) || 200);
 const CRON = process.env.CRON_SCHEDULE || "0 9 * * *";
 const POLL_TICK = "* * * * *";
 
@@ -887,7 +889,7 @@ app.get("/api/trends/rank", (req, res) => {
 // ── 🏆 排行榜（总星 Top N + 日均增长 Top N）─────────────────────
 app.get("/api/leaderboard", (req, res) => {
   const window = ["day", "week", "month"].includes(req.query.window) ? req.query.window : "day";
-  const limit = Math.min(50, Math.max(1, toNum(req.query.limit, 10)));
+  const limit = Math.min(LEADERBOARD_MAX, Math.max(1, toNum(req.query.limit, 10)));
   const minStars = toNum(req.query.minStars, Number(getSetting("minStars", DEFAULT_MIN_STARS)) || 0);
   res.json(getLeaderboard({ limit, window, minStars, metric: toMetric(req.query.metric) }));
 });

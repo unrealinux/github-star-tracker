@@ -22,7 +22,7 @@ GitHub 星标追踪工具 —— 实时监控热门仓库的星数变化，支�
 - **日增/窗口增长** —— 24h / 7天 / 30天三个窗口
 - **语言趋势** —— 各编程语言的星数增长排行
 - **排名变化** —— 谁在上升、谁在下滑
-- **🏆 排行榜** —— 左右分栏对比「总星数排行」与「日均新增排行」
+- **🏆 排行榜** —— 左右分栏对比「总星数排行」与「日均新增排行」；下方**全站星标榜**列出全部仓库的完整名次（分页、不受最低星数筛选）
 - **日均增长** —— 基于近 7 天快照平滑，比单次差值稳定
 - **🚀 爆发榜** —— 增速加速度（二阶导），识别「正在起飞」与「热度衰减」
 - **🔎 异常检测** —— 对日增做 z-score（相对自身历史），区分「本来就热」与「突然被引爆」
@@ -122,6 +122,7 @@ npm start
 | `PGSSLMODE` | PG 的 TLS 模式：`disable` / `require` / `no-verify` / `verify-ca` / `verify-full` | 空（听连接串） |
 | `PGSSLROOTCERT` | `verify-ca` / `verify-full` 时的 CA 证书路径 | 空 |
 | `SESSION_TTL_DAYS` | 登录会话有效期（天，最小 1） | `30` |
+| `LEADERBOARD_MAX` | 排行榜类接口返回条数上限 | `200` |
 | `GST_ENV_FILE` | 自定义 `.env` 路径（默认仓库根目录 `.env`） | 空 |
 | `TRUST_PROXY` | 反代部署时设为 `true` 或 `loopback`，使限流/日志取到真实 IP | 空（关闭） |
 | `VAPID_SUBJECT` | Web Push 的 VAPID `sub` 字段（一般为 `mailto:you@example.com`）| `mailto:admin@example.com` |

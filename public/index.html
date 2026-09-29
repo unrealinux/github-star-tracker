@@ -381,9 +381,13 @@
       <details class="tab-help">
         <summary>ℹ️ 这个页面怎么算的</summary>
         <ul>
-          <li>左栏：<b>总星数</b> Top N；右栏：<b>日均新增</b> Top N。</li>
+          <li>
+            左栏：<b>总星数</b> Top N；右栏：<b>日均新增</b> Top N。N 可在右上切换（上限由
+            <code>LEADERBOARD_MAX</code> 控制，默认 200）。
+          </li>
           <li>日均新增用<b>近 7 天快照</b>求平均（比单次差值稳定），窗口可切换。</li>
           <li>并列名次用仓库 id 打破，保证 SQLite / PostgreSQL 结果一致。</li>
+          <li>下方<b>全站星标榜</b>列出全部仓库的完整名次（<b>不受「最低星数」筛选</b>，分页浏览）。</li>
         </ul>
       </details>
       <section class="list-header">
@@ -396,6 +400,8 @@
               <option value="10" selected>Top 10</option>
               <option value="20">Top 20</option>
               <option value="50">Top 50</option>
+              <option value="100">Top 100</option>
+              <option value="200">Top 200</option>
             </select>
           </label>
           <label
@@ -429,6 +435,26 @@
           <div id="lb-by-growth" class="lb-list"></div>
         </div>
       </div>
+
+      <section class="full-rank">
+        <div class="full-rank-head">
+          <h3 class="lb-col-title">📋 全站星标榜 · 全部仓库（不受最低星数筛选）</h3>
+          <div class="full-rank-controls">
+            <label
+              >每页
+              <select id="fr-page-size">
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+            </label>
+            <button id="fr-prev" class="btn btn-sm btn-secondary">上一页</button>
+            <span id="fr-info" class="muted"></span>
+            <button id="fr-next" class="btn btn-sm btn-secondary">下一页</button>
+          </div>
+        </div>
+        <div id="full-rank-list" class="full-rank-list"></div>
+      </section>
     </section>
 
     <!-- ===== 🚀 爆发榜 + ⏪ 历史回放 ===== -->

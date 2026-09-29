@@ -1695,3 +1695,79 @@ body {
 .tab-help code {
   color: var(--text);
 }
+
+/* ── 📋 全站星标榜（分页的完整名次）── */
+.full-rank {
+  margin-top: 20px;
+}
+.full-rank-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.full-rank-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.full-rank-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.full-rank-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.fr-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 110px 120px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 13px;
+}
+.fr-row:last-child {
+  border-bottom: none;
+}
+.fr-row:hover {
+  background: var(--surface-2);
+}
+.fr-rank {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.fr-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fr-lang {
+  color: var(--text-2);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fr-stars {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+@media (max-width: 640px) {
+  .fr-row {
+    grid-template-columns: 36px 1fr 90px;
+  }
+  .fr-lang {
+    display: none;
+  }
+}

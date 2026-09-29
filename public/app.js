@@ -131,8 +131,10 @@ document.querySelectorAll(".tab").forEach((tab) => {
     else if (state.activeTab === "custom") loadCustomRepos();
     else if (state.activeTab === "language-trend") loadLanguageTrends();
     else if (state.activeTab === "rank") loadRankChanges();
-    else if (state.activeTab === "leaderboard") loadLeaderboard();
-    else if (state.activeTab === "surge") {
+    else if (state.activeTab === "leaderboard") {
+      loadLeaderboard();
+      loadFullRanking();
+    } else if (state.activeTab === "surge") {
       loadSurges();
       initReplayDefault();
     } else if (state.activeTab === "compare") initCompare();
@@ -1211,6 +1213,37 @@ async function loadLeaderboard() {
   } catch (e) {
     $("lb-by-stars").innerHTML = `<div class="empty"><p>加载失败: ${escapeHtml(e.message)}</p></div>`;
     $("lb-by-growth").innerHTML = "";
+  }
+}
+
+// ── 📋 全站星标榜（全部仓库，不受最低星数筛选）──
+let frPage = 1;
+async function loadFullRanking() {
+  const size = Number($("fr-page-size")?.value) || 50;
+  try {
+    const data = await fetchJson(
+      `/api/repos?sort=stars&metric=stars&minStars=0&minGrowth=0&page=${frPage}&pageSize=${size}`,
+    );
+    const start = (data.page - 1) * data.pageSize;
+    const rows = (data.repos || [])
+      .map(
+        (r, i) => `<div class="fr-row" data-id="${r.id}">
+        <span class="fr-rank">${start + i + 1}</span>
+        <span class="fr-name"><a class="repo-name" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" data-stop="1">${escapeHtml(r.full_name)}</a></span>
+        <span class="fr-lang">${escapeHtml(r.language || "—")}</span>
+        <span class="fr-stars">★ ${fmt(r.stars)}</span>
+      </div>`,
+      )
+      .join("");
+    $("full-rank-list").innerHTML = rows || '<div class="empty"><p>暂无数据</p></div>';
+    $("fr-info").textContent = `第 ${data.page} / ${data.totalPages} 页 · 共 ${fmt(data.total)} 个仓库`;
+    $("fr-prev").disabled = data.page <= 1;
+    $("fr-next").disabled = data.page >= data.totalPages;
+    $("full-rank-list")
+      .querySelectorAll(".fr-row")
+      .forEach((el) => el.addEventListener("click", () => openDetail(Number(el.dataset.id))));
+  } catch (e) {
+    $("full-rank-list").innerHTML = `<div class="empty"><p>加载失败: ${escapeHtml(e.message)}</p></div>`;
   }
 }
 
@@ -2359,6 +2392,20 @@ on("rank-window", "change", loadRankChanges);
 on("lb-limit", "change", loadLeaderboard);
 on("lb-window", "change", loadLeaderboard);
 on("lb-metric", "change", loadLeaderboard);
+on("fr-prev", "click", () => {
+  if (frPage > 1) {
+    frPage--;
+    loadFullRanking();
+  }
+});
+on("fr-next", "click", () => {
+  frPage++;
+  loadFullRanking();
+});
+on("fr-page-size", "change", () => {
+  frPage = 1;
+  loadFullRanking();
+});
 on("surge-limit", "change", loadSurges);
 on("surge-min-stars", "change", loadSurges);
 on("surge-metric", "change", loadSurges);

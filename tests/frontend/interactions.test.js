@@ -199,3 +199,26 @@ test("筛选：调整最低星数后列表随之变化", { skip, timeout: 60000 
   })()`);
   assert.ok(await waitFor(`document.querySelectorAll('.repo-row').length === 2`));
 });
+
+test("全站星标榜：列出全部仓库并带名次（不受最低星数筛选）", { skip, timeout: 60000 }, async () => {
+  const { evaluate, waitFor } = await open();
+  await evaluate(`document.querySelector('.tab[data-tab="leaderboard"]').click()`);
+  assert.ok(await waitFor(`document.querySelectorAll('#full-rank-list .fr-row').length > 0`));
+
+  assert.equal(
+    await evaluate(`document.querySelector('#full-rank-list .fr-row .fr-name').textContent.trim()`),
+    "seed/one",
+    "第 1 名应是星数最高的仓库",
+  );
+  assert.equal(
+    await evaluate(`document.querySelectorAll('#full-rank-list .fr-row').length`),
+    2,
+    "应列出全部 2 个仓库（含 50 星的低星仓库）",
+  );
+  assert.match(await evaluate(`document.getElementById('fr-info').textContent`), /共 2 个仓库/);
+  assert.equal(await evaluate(`document.getElementById('fr-next').disabled`), true, "仅一页时下一页应禁用");
+
+  // 点行可打开详情
+  await evaluate(`document.querySelector('#full-rank-list .fr-row').click()`);
+  assert.ok(await waitFor(`!document.getElementById('detail-overlay').classList.contains('hidden')`));
+});
