@@ -621,6 +621,26 @@ describe("getLeaderboard 排行榜", () => {
     const lb = getLeaderboard({ limit: 3, window: "day", minStars: 0 });
     assert.ok(Math.abs(lb.sampleDays - 6) < 0.1, `应约 6 天，实际 ${lb.sampleDays}`);
   });
+
+  test("样本跨度过短的仓库不进日均增长榜（仍在总星榜）", () => {
+    db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
+    ).run("tiny/span", "span", "tiny", "u", "Go", 700000);
+    const id = db.prepare("SELECT id FROM repos WHERE full_name = ?").get("tiny/span").id;
+    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
+    const nowMs = Date.now();
+    snap.run(id, 700000, new Date(nowMs).toISOString());
+    snap.run(id, 700500, new Date(nowMs - 2.4 * 3600 * 1000).toISOString()); // 仅 0.1 天跨度
+
+    const lb = getLeaderboard({ limit: 50, window: "day", minStars: 0 });
+    assert.ok(
+      lb.byStars.some((r) => r.full_name === "tiny/span"),
+      "总星榜仍应包含它（700000 星最高）",
+    );
+    assert.ok(!lb.byGrowth.some((r) => r.full_name === "tiny/span"), "样本仅 0.1 天，不应进日均增长榜");
+    assert.equal(lb.minSampleDays, 0.5);
+    assert.ok(lb.excludedForSample >= 1, "应报告被样本门槛挡下的数量");
+  });
 });
 
 describe("getSurges 爆发检测（P0-1）", () => {

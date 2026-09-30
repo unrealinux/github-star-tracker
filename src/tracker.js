@@ -26,6 +26,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 快照查询上限：只取最近 35 天、每仓库最多 400 条，避免全表加载
 const SNAPSHOT_WINDOW_DAYS = 35;
 const SNAPSHOT_PER_REPO_CAP = 400;
+// 日均增长榜要求的最小样本跨度（天）：太短的样本会把「几小时的差值」外推成夸张的日增
+const MIN_GROWTH_SAMPLE_DAYS = 0.5;
 
 // ── 指标定义（P1：多指标）────────────────────────────────────────
 const METRICS = {
@@ -830,10 +832,14 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
     .slice()
     .sort((a, b) => b.metricValue - a.metricValue || a.id - b.id)
     .slice(0, limit);
-  const byGrowth = rows
-    .filter((r) => r.avgDailyGrowth !== null)
+  // 日均增长榜：样本跨度不足的仓库不参与（避免用几小时的差值外推出假高日增）
+  const growthCandidates = rows.filter((r) => r.avgDailyGrowth !== null);
+  const enoughSample = growthCandidates.filter((r) => (r.avgSampleDays || 0) >= MIN_GROWTH_SAMPLE_DAYS);
+  const byGrowth = enoughSample
+    .slice()
     .sort((a, b) => b.avgDailyGrowth - a.avgDailyGrowth || a.id - b.id)
     .slice(0, limit);
+  const excludedForSample = growthCandidates.length - enoughSample.length;
 
   const sampleDays = rows.reduce((m, r) => Math.max(m, r.avgSampleDays || 0), 0);
   return {
@@ -845,6 +851,8 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
     metricLabel: metricDef.label,
     metricNoun: metricDef.noun,
     sampleDays: Number(sampleDays.toFixed(2)),
+    minSampleDays: MIN_GROWTH_SAMPLE_DAYS,
+    excludedForSample,
   };
 }
 
