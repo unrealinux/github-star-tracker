@@ -26,7 +26,7 @@ npm test               # SQLite
 npm run test:postgres  # PostgreSQL（内嵌 PGlite，无需服务器）
 ```
 
-**完成标准**：两次都是 `# fail 0`，且两边的 `# tests` **数字相同**（当前为 221）。
+**完成标准**：两次都是 `# fail 0`，且两边的 `# tests` **数字相同**（当前为 222）。
 数字不同或有一边失败，就说明存在后端相关差异，先解决它再继续。
 
 ---
@@ -86,7 +86,7 @@ node --test tests/frontend/*.test.js  # 前端冒烟 + 交互（注意：不在 
 ```
 
 **完成标准**：全部文件都是 `# fail 0`（只有 `core.test.js` 与 `api.test.js` 真正打到外部 PostgreSQL），
-且所有文件用例数**之和**与 Step 1 的总数一致（当前 221）。
+且所有文件用例数**之和**与 Step 1 的总数一致（当前 222）。
 （`tests/frontend/*.test.js` 不计入上述总数：单独跑、依赖真实 Chrome，不参与「两后端一致」对比。）
 任一边红，就是真实 PostgreSQL 上的真问题——此时错误信息应能直接定位（见「已知坑」第 2 条）。
 

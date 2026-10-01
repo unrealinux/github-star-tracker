@@ -389,6 +389,10 @@
             右栏「增长排行」口径可切换：<b>近7天日均</b>（默认，稳，单位 星/天）/ <b>近24h 新增</b> /
             <b>近7天 新增</b> / <b>近30天 新增</b>（后三者是窗口内<b>原始新增</b>，单位 星）。
           </li>
+          <li>
+            <b>今日新增</b>按<b>本地时区</b>，以「今天 00:00
+            之前最近一条快照」为基准；快照越密越准（每日一刷时误差最多约一天）。
+          </li>
           <li>并列名次用仓库 id 打破，保证 SQLite / PostgreSQL 结果一致。</li>
           <li>下方<b>全站星标榜</b>列出全部仓库的完整名次（<b>不受「最低星数」筛选</b>，分页浏览）。</li>
           <li>
@@ -430,6 +434,7 @@
               <option value="day">近24h 新增</option>
               <option value="week">近7天 新增</option>
               <option value="month">近30天 新增</option>
+              <option value="today">今日新增（00:00 起）</option>
             </select>
           </label>
         </div>

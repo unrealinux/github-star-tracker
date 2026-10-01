@@ -669,6 +669,24 @@ describe("getLeaderboard 排行榜", () => {
     assert.equal(getLeaderboard({ limit: 1 }).basis, "avg7");
     assert.equal(getLeaderboard({ limit: 1 }).basisUnit, "星/天");
   });
+
+  test("basis=today：按本地自然日（今天 00:00 前最近快照）算新增", () => {
+    db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
+    ).run("today/one", "one", "today", "u", "Go", 5400);
+    const id = db.prepare("SELECT id FROM repos WHERE full_name = ?").get("today/one").id;
+    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
+    const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
+    snap.run(id, 4000, iso(3));
+    snap.run(id, 5000, iso(1)); // 今天 00:00 之前最近一条
+    snap.run(id, 5400, iso(0));
+
+    const lb = getLeaderboard({ limit: 50, basis: "today", minStars: 0 });
+    assert.equal(lb.basis, "today");
+    const r = lb.byGrowth.find((x) => x.full_name === "today/one");
+    assert.ok(r, "应进入今日新增榜");
+    assert.equal(r.basisValue, 400, "今日新增 = 5400 − 5000");
+  });
 });
 
 describe("getSurges 爆发检测（P0-1）", () => {

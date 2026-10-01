@@ -797,17 +797,26 @@ export function listLanguages() {
  * growthBasis（basis）：
  *   avg7（默认）→ 近 7 天日均（星/天，稳定）
  *   day / week / month → 对应窗口内的**原始新增**（星）
+ *   today → 自然日新增：本地时区今天 00:00 之前最近一条快照为基准（星）
  */
 const GROWTH_BASES = {
   avg7: { label: "近7天日均", unit: "星/天", win: null },
   day: { label: "近24h新增", unit: "星", win: "day" },
   week: { label: "近7天新增", unit: "星", win: "week" },
   month: { label: "近30天新增", unit: "星", win: "month" },
+  today: { label: "今日新增（00:00 起）", unit: "星", win: "day", calendar: true },
 };
 export const AVAILABLE_GROWTH_BASES = Object.entries(GROWTH_BASES).map(([key, v]) => ({
   key,
   label: v.label,
 }));
+
+/** 本地时区「今天 00:00」的毫秒时间戳 */
+function todayStartMs(now = Date.now()) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
 
 export function getLeaderboard({ limit = 10, basis = "avg7", minStars = 0, metric = "stars" } = {}) {
   const now = Date.now();
@@ -820,13 +829,28 @@ export function getLeaderboard({ limit = 10, basis = "avg7", minStars = 0, metri
       ? db.prepare("SELECT * FROM repos WHERE stars >= ? ORDER BY id").all(minStars)
       : db.prepare("SELECT * FROM repos ORDER BY id").all();
   const snapMap = loadSnapshotMap({ repoIds: repoRows.map((r) => r.id) });
+  const startMs = b.calendar ? todayStartMs(now) : null;
 
   const rows = repoRows.map((r) => {
     const snaps = snapMap.get(r.id) || [];
     const value = r[field] || 0;
     // 窗口原始增量：basis=avg7 时仍用于总星榜那行小字；窗口 basis 时就是排序值
     const { growth, label, avgDaily } = computeGrowth(value, snaps, now, b.win || "day", field);
-    const basisValue = b.win === null ? (avgDaily ? Number(avgDaily.avg.toFixed(2)) : null) : growth;
+    let basisValue;
+    if (b.calendar) {
+      // 自然日：取「今天 00:00 之前最近一条快照」为基准；没有则用今首条快照兜底
+      let base = null;
+      for (let i = snaps.length - 1; i >= 0; i--) {
+        if (Date.parse(snaps[i].captured_at) <= startMs) {
+          base = snaps[i][field];
+          break;
+        }
+      }
+      if (base === null) base = snaps.length ? snaps[0][field] : null;
+      basisValue = base === null ? null : value - base;
+    } else {
+      basisValue = b.win === null ? (avgDaily ? Number(avgDaily.avg.toFixed(2)) : null) : growth;
+    }
     return {
       id: r.id,
       full_name: r.full_name,
