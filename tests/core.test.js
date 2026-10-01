@@ -76,6 +76,7 @@ const {
   resolveIndexMembers,
   getIndexSeries,
   getQueryAggregate,
+  getQueryMemberGrowth,
   refreshTrackedQueries,
   refreshCustomRepos,
   getRepoHistory,
@@ -1805,6 +1806,33 @@ describe("泛化追踪对象：指数与生态（第三批）", () => {
 
     assert.equal(removeTrackedQuery(q.id), 1);
     assert.equal(getTrackedQuery(q.id), undefined);
+  });
+
+  test("生态成员增长榜：按口径对成员排名（getQueryMemberGrowth）", () => {
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
+    );
+    ins.run("eco/hot", "hot", "eco", "u", "Go", 20000);
+    ins.run("eco/cold", "cold", "eco", "u", "Go", 20000);
+    const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
+    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
+    const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
+    snap.run(idOf("eco/hot"), 19000, iso(1));
+    snap.run(idOf("eco/hot"), 20000, iso(0)); // 近24h +1000
+    snap.run(idOf("eco/cold"), 19900, iso(1));
+    snap.run(idOf("eco/cold"), 20000, iso(0)); // 近24h +100
+
+    const q = addTrackedQuery("AI 视频测试", "topic:text-to-video");
+    replaceQueryMembers(q.id, [idOf("eco/hot"), idOf("eco/cold")], new Date().toISOString());
+
+    const g = getQueryMemberGrowth(q.id, { basis: "day", limit: 10 });
+    assert.equal(g.memberCount, 2);
+    assert.equal(g.basisUnit, "星");
+    assert.equal(g.byGrowth[0].full_name, "eco/hot", "+1000 应排在 +100 前");
+    assert.equal(g.byGrowth[0].basisValue, 1000);
+    // 非属主取不到
+    assert.equal(getQueryMemberGrowth(q.id, { userId: 99 }), null);
+    removeTrackedQuery(q.id);
   });
 
   test("refreshTrackedQueries 抓取并写成员（stub 网络）", async () => {

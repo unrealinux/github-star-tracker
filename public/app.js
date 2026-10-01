@@ -2022,6 +2022,7 @@ async function loadQueries() {
         currentQueryId = null;
         $("q-chart").innerHTML = "";
         $("q-members").innerHTML = "";
+        $("q-growth").innerHTML = "";
         $("q-detail-title").textContent = "生态走势";
       }
       loadQueries();
@@ -2033,6 +2034,7 @@ async function loadQueries() {
   else {
     $("q-chart").innerHTML = "";
     $("q-members").innerHTML = "";
+    $("q-growth").innerHTML = "";
     $("q-detail-title").textContent = "生态走势";
   }
 }
@@ -2051,8 +2053,34 @@ async function selectQuery(id) {
     $("q-members")
       .querySelectorAll("tr[data-id]")
       .forEach((tr) => tr.addEventListener("click", () => openDetail(Number(tr.dataset.id))));
+    loadQueryGrowth(id);
   } catch (e) {
     $("q-chart").innerHTML = `<p class="muted">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+/** 生态/Topic 成员的「新增 star」增长榜 */
+async function loadQueryGrowth(id) {
+  const el = $("q-growth");
+  if (!el) return;
+  const basis = $("q-growth-basis")?.value || "today";
+  const limit = $("q-growth-limit")?.value || 10;
+  try {
+    const d = await fetchJson(`/api/queries/${id}/growth?basis=${basis}&limit=${limit}`);
+    const excl = Number(d.excludedForSample) || 0;
+    const note = excl
+      ? `<p class="muted" style="font-size:12px">（已隐藏 ${excl} 个样本跨度不足 ${d.minSampleDays} 天的成员）</p>`
+      : "";
+    el.innerHTML =
+      `<p class="muted" style="font-size:12px">口径：${escapeHtml(d.basisLabel)} · 成员 ${d.memberCount}</p>` +
+      ((d.byGrowth || []).map((r, i) => lbItem(r, i + 1, "growth")).join("") ||
+        '<div class="empty"><p>暂无增长数据（成员需至少 2 条快照）</p></div>') +
+      note;
+    el.querySelectorAll(".lb-item").forEach((x) =>
+      x.addEventListener("click", () => openDetail(Number(x.dataset.id))),
+    );
+  } catch (e) {
+    el.innerHTML = `<p class="muted">加载失败: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -2575,6 +2603,8 @@ on("q-refresh", "click", async (e) => {
 });
 on("q-days", "change", () => currentQueryId && selectQuery(currentQueryId));
 on("q-weight", "change", () => currentQueryId && selectQuery(currentQueryId));
+on("q-growth-basis", "change", () => currentQueryId && loadQueryGrowth(currentQueryId));
+on("q-growth-limit", "change", () => currentQueryId && loadQueryGrowth(currentQueryId));
 
 // 💾 保存的视图
 on("view-save", "click", async () => {

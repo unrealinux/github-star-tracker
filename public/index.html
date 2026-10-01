@@ -744,6 +744,11 @@
             <b>生态 / Topic</b>：用 GitHub 搜索语法（如
             <code>topic:llm</code>）定义，刷新时抓取成员并跟踪整体走势。
           </li>
+          <li>
+            选中一个生态后，下方<b>成员增长榜</b>把成员按新增 star 排名（口径可选：今日新增 / 近24h / 近7天 /
+            近30天 / 近7天日均）。适合「AI 视频」这类小领域：先用语法（如
+            <code>topic:text-to-video topic:video-generation</code>）定义生态，成员会自动进入采集。
+          </li>
         </ul>
       </details>
       <section class="list-header">
@@ -834,6 +839,30 @@
       </section>
       <div id="q-chart" class="chart-box"></div>
       <div id="q-members"></div>
+      <section class="list-header">
+        <h3 class="lb-col-title growth">🚀 成员增长榜（本生态内）</h3>
+        <div class="lb-controls">
+          <label
+            >口径
+            <select id="q-growth-basis">
+              <option value="today" selected>今日新增</option>
+              <option value="day">近24h 新增</option>
+              <option value="week">近7天 新增</option>
+              <option value="month">近30天 新增</option>
+              <option value="avg7">近7天日均</option>
+            </select>
+          </label>
+          <label
+            >条数
+            <select id="q-growth-limit">
+              <option value="10" selected>Top 10</option>
+              <option value="20">Top 20</option>
+              <option value="50">Top 50</option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <div id="q-growth" class="lb-list"></div>
     </section>
 
     <!-- ===== 📉 全局趋势 ===== -->

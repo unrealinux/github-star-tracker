@@ -34,11 +34,14 @@ function translateStrftime(sql) {
     .replace(/strftime\('%Y-%m-%d'\s*,\s*'now'\)/gi, `to_char(now() at time zone 'utc','YYYY-MM-DD')`)
     .replace(
       /strftime\('%Y-%m-%W'\s*,\s*([^)]+)\)/gi,
-      (_m, col) => `to_char((${col.trim()})::timestamptz, 'IYYY-IW')`,
+      // 必须 at time zone 'utc'：captured_at 存的是 UTC 字符串，
+      // 否则 to_char 用会话时区渲染，会在周界（周一 00:00 附近）把快照分到不同周，
+      // 与 SQLite 对 UTC 字符串直接取周不一致。
+      (_m, col) => `to_char(((${col.trim()})::timestamptz at time zone 'utc'), 'IYYY-IW')`,
     )
     .replace(
       /strftime\('%Y-%W'\s*,\s*([^)]+)\)/gi,
-      (_m, col) => `to_char((${col.trim()})::timestamptz, 'IYYY-IW')`,
+      (_m, col) => `to_char(((${col.trim()})::timestamptz at time zone 'utc'), 'IYYY-IW')`,
     );
 }
 

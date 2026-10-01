@@ -818,16 +818,38 @@ function todayStartMs(now = Date.now()) {
   return d.getTime();
 }
 
-export function getLeaderboard({ limit = 10, basis = "avg7", minStars = 0, metric = "stars" } = {}) {
+export function getLeaderboard({
+  limit = 10,
+  basis = "avg7",
+  minStars = 0,
+  metric = "stars",
+  repoIds = null,
+} = {}) {
   const now = Date.now();
   const metricDef = metricOf(metric);
   const field = metricDef.field;
   const b = GROWTH_BASES[basis] || GROWTH_BASES.avg7;
-  // 显式排序：不同后端行序不同，不排序会让并列名次的顺序随机
-  const repoRows =
-    minStars > 0
-      ? db.prepare("SELECT * FROM repos WHERE stars >= ? ORDER BY id").all(minStars)
-      : db.prepare("SELECT * FROM repos ORDER BY id").all();
+  // repoIds 给定时只统计这批仓库（生态/Topic 成员增长榜用它）；否则按 minStars 全量
+  let repoRows;
+  if (Array.isArray(repoIds)) {
+    const ids = [...new Set(repoIds.filter(Number.isInteger))];
+    repoRows = [];
+    const CHUNK = 500;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      repoRows.push(
+        ...db
+          .prepare(`SELECT * FROM repos WHERE id IN (${chunk.map(() => "?").join(",")}) ORDER BY id`)
+          .all(...chunk),
+      );
+    }
+    repoRows.sort((a, b) => a.id - b.id);
+  } else {
+    repoRows =
+      minStars > 0
+        ? db.prepare("SELECT * FROM repos WHERE stars >= ? ORDER BY id").all(minStars)
+        : db.prepare("SELECT * FROM repos ORDER BY id").all();
+  }
   const snapMap = loadSnapshotMap({ repoIds: repoRows.map((r) => r.id) });
   const startMs = b.calendar ? todayStartMs(now) : null;
 
@@ -1960,6 +1982,20 @@ export function getQueryAggregate(id, { days = 90, weight = "equal", userId = 0 
     member_count: q.member_count,
     last_run_at: q.last_run_at,
     ...computeAggregateSeries(getQueryMemberIds(id), { days, weight }),
+  };
+}
+
+/** 生态 / Topic 成员的「新增 star」增长榜（复用排行榜口径） */
+export function getQueryMemberGrowth(id, { basis = "today", limit = 10, metric = "stars", userId = 0 } = {}) {
+  const q = getTrackedQuery(id);
+  if (!q || q.user_id !== userId) return null;
+  const ids = getQueryMemberIds(id);
+  return {
+    id: q.id,
+    label: q.label,
+    query: q.query,
+    memberCount: ids.length,
+    ...getLeaderboard({ limit, basis, metric, minStars: 0, repoIds: ids }),
   };
 }
 

@@ -77,6 +77,7 @@ import {
   backtestAlerts,
   getIndexSeries,
   getQueryAggregate,
+  getQueryMemberGrowth,
   refreshTrackedQueries,
 } from "./src/tracker.js";
 import { renderBadge, colorForGrowth, compactNumber, renderSparkline, shieldsPayload } from "./src/badge.js";
@@ -555,6 +556,19 @@ app.get("/api/queries/:id", (req, res) => {
   const data = getQueryAggregate(id, {
     days: toNum(req.query.days, 90),
     weight: req.query.weight === "cap" ? "cap" : "equal",
+    userId: req.userId || 0,
+  });
+  if (!data) return res.status(404).json({ error: "追踪不存在" });
+  res.json(data);
+});
+
+app.get("/api/queries/:id/growth", (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "无效的 ID" });
+  const data = getQueryMemberGrowth(id, {
+    basis: GROWTH_BASIS_KEYS.includes(req.query.basis) ? req.query.basis : "today",
+    limit: Math.min(100, Math.max(1, toNum(req.query.limit, 10))),
+    metric: toMetric(req.query.metric),
     userId: req.userId || 0,
   });
   if (!data) return res.status(404).json({ error: "追踪不存在" });
