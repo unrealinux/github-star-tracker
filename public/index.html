@@ -742,7 +742,7 @@
           </li>
           <li>
             <b>生态 / Topic</b>：用 GitHub 搜索语法（如
-            <code>topic:llm</code>）定义，刷新时抓取成员并跟踪整体走势。
+            <code>topic:llm</code>）定义，刷新时抓取成员并跟踪整体走势；<b>可多行，每行一条，成员取并集</b>。
           </li>
           <li>
             选中一个生态后，下方<b>成员增长榜</b>把成员按新增 star 排名（口径可选：今日新增 / 近24h / 近7天 /
@@ -804,14 +804,18 @@
         <h2>🌐 生态 / Topic 追踪</h2>
         <span class="muted" style="font-size: 12px"
           >用 GitHub 搜索语法定义（如 <code>topic:llm</code>、<code>language:rust stars:&gt;20000</code
-          >），刷新时自动抓取成员</span
+          >）；<b>可多行，每行一条，成员取并集</b>（GitHub 搜索不支持 OR），刷新时自动抓取成员</span
         >
       </section>
       <section class="controls">
         <label>名称 <input id="q-label" type="text" placeholder="例如：LLM 生态" /></label>
         <label style="flex: 1 1 320px"
-          >搜索语法 <input id="q-query" type="text" placeholder="topic:llm 或 language:rust stars:>20000"
-        /></label>
+          >搜索语法（可多行，每行一条）<textarea
+            id="q-query"
+            rows="2"
+            placeholder="topic:text-to-video&#10;topic:video-generation"
+          ></textarea>
+        </label>
         <button id="q-add" class="btn btn-primary">添加追踪</button>
         <button id="q-refresh" class="btn btn-secondary">立即刷新成员</button>
         <span id="q-status" class="status" role="status" aria-live="polite"></span>

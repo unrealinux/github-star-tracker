@@ -1870,6 +1870,7 @@ let indicesCache = [];
 let queriesCache = [];
 let currentIndexId = null;
 let currentQueryId = null;
+let editingQueryId = null;
 
 async function initIndices() {
   await Promise.all([loadIndices(), loadQueries()]);
@@ -2002,6 +2003,7 @@ async function loadQueries() {
           (x) => `<div class="entity-row${x.id === currentQueryId ? " active" : ""}" data-id="${x.id}">
         <span class="entity-name">${escapeHtml(x.label)}</span>
         <span class="entity-spec"><code>${escapeHtml(x.query)}</code> · ${x.member_count} 成员${x.last_run_at ? ` · ${timeAgo(x.last_run_at)}` : " · 未运行"}</span>
+        <button class="btn btn-sm btn-secondary entity-edit" data-id="${x.id}">编辑</button>
         <button class="btn btn-sm btn-danger entity-del" data-id="${x.id}">删除</button>
       </div>`,
         )
@@ -2011,7 +2013,21 @@ async function loadQueries() {
   el.querySelectorAll(".entity-row").forEach((row) =>
     row.addEventListener("click", (e) => {
       if (e.target.classList.contains("entity-del")) return;
+      if (e.target.classList.contains("entity-edit")) return;
       selectQuery(Number(row.dataset.id));
+    }),
+  );
+  el.querySelectorAll(".entity-edit").forEach((b) =>
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const q = queriesCache.find((x) => x.id === Number(b.dataset.id));
+      if (!q) return;
+      editingQueryId = Number(q.id);
+      $("q-label").value = q.label;
+      $("q-query").value = q.query;
+      $("q-add").textContent = "保存修改";
+      $("q-label").focus();
+      $("q-status").textContent = `正在编辑「${q.label}」`;
     }),
   );
   el.querySelectorAll(".entity-del").forEach((b) =>
@@ -2572,16 +2588,27 @@ on("q-add", "click", async () => {
   const query = ($("q-query").value || "").trim();
   if (!label || !query) return showError("请输入名称和搜索语法");
   try {
-    const r = await fetchJson("/api/queries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, query }),
-    });
+    const editing = editingQueryId;
+    const r = editing
+      ? await fetchJson(`/api/queries/${editing}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, query }),
+        })
+      : await fetchJson("/api/queries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label, query }),
+        });
     $("q-label").value = "";
     $("q-query").value = "";
-    currentQueryId = r.id;
+    editingQueryId = null;
+    $("q-add").textContent = "添加追踪";
+    currentQueryId = editing || r.id;
     await loadQueries();
-    $("q-status").textContent = "已添加，点「立即刷新成员」抓取";
+    $("q-status").textContent = editing
+      ? "已保存，点「立即刷新成员」重新抓取"
+      : "已添加，点「立即刷新成员」抓取";
   } catch (e) {
     showError(e.message);
   }

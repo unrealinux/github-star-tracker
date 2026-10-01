@@ -450,6 +450,20 @@ export function addTrackedQuery(label, query, userId = 0) {
   }
 }
 
+export function updateTrackedQuery(id, label, query, userId = 0) {
+  const l = String(label || "")
+    .trim()
+    .slice(0, 60);
+  const q = String(query || "").trim();
+  if (!l) throw new Error("名称不能为空");
+  if (!q) throw new Error("搜索语法不能为空");
+  return (
+    db
+      .prepare("UPDATE tracked_queries SET label = ?, query = ? WHERE id = ? AND user_id = ?")
+      .run(l, q, id, userId).changes > 0
+  );
+}
+
 export function removeTrackedQuery(id, userId = 0) {
   db.prepare("DELETE FROM query_members WHERE query_id = ?").run(id);
   return db.prepare("DELETE FROM tracked_queries WHERE id = ? AND user_id = ?").run(id, userId).changes;

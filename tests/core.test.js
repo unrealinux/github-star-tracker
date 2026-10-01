@@ -43,6 +43,7 @@ const {
   listIndices,
   removeIndex,
   addTrackedQuery,
+  updateTrackedQuery,
   removeTrackedQuery,
   getTrackedQuery,
   replaceQueryMembers,
@@ -1884,6 +1885,56 @@ describe("泛化追踪对象：指数与生态（第三批）", () => {
       assert.equal(r.members, 2);
       assert.equal(getQueryMemberIds(q.id).length, 2);
       assert.ok(db.prepare("SELECT id FROM repos WHERE full_name = 'q/one'").get());
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  test("updateTrackedQuery 改名/改语法（校验属主）", () => {
+    const q = addTrackedQuery("改名测试", "language:a");
+    assert.equal(updateTrackedQuery(q.id, "改名后", "language:b"), true);
+    const got = getTrackedQuery(q.id);
+    assert.equal(got.label, "改名后");
+    assert.equal(got.query, "language:b");
+    assert.equal(updateTrackedQuery(q.id, "x", "y", 99), false, "非属主不能改");
+    assert.throws(() => updateTrackedQuery(q.id, "", "y"), /名称不能为空/);
+    removeTrackedQuery(q.id);
+  });
+
+  test("refreshTrackedQueries 多行语法取并集去重（stub 网络）", async () => {
+    db.exec("DELETE FROM query_members; DELETE FROM tracked_queries;");
+    const q = addTrackedQuery("多行生态", "topic:a\ntopic:b");
+    const real = globalThis.fetch;
+    const mk = (name) => ({
+      full_name: name,
+      name,
+      owner: { login: "q" },
+      html_url: "u",
+      description: "d",
+      language: "Stub",
+      homepage: null,
+      stargazers_count: 1000,
+      forks_count: 0,
+      open_issues_count: 0,
+      created_at: "2020-01-01T00:00:00Z",
+    });
+    globalThis.fetch = async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes("/search/repositories")) {
+        const items = u.includes("topic:a") ? [mk("dup/x"), mk("only/a")] : [mk("dup/x"), mk("only/b")];
+        return new Response(JSON.stringify({ items }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    };
+    try {
+      const r = await refreshTrackedQueries({ token: undefined, perQuery: 50 });
+      assert.equal(r.updated, 1);
+      assert.equal(r.members, 3, "两行并集去重后应为 3 个（dup/x, only/a, only/b）");
+      assert.equal(getQueryMemberIds(q.id).length, 3);
+      assert.ok(db.prepare("SELECT id FROM repos WHERE full_name = 'only/b'").get());
     } finally {
       globalThis.fetch = real;
     }

@@ -33,6 +33,7 @@ import {
   removeIndex,
   listTrackedQueries,
   addTrackedQuery,
+  updateTrackedQuery,
   removeTrackedQuery,
   listPushSubscriptions,
   countPushSubscriptions,
@@ -548,6 +549,18 @@ app.delete("/api/queries/:id", (req, res) => {
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "无效的 ID" });
   if (!removeTrackedQuery(id, req.userId || 0)) return res.status(404).json({ error: "追踪不存在" });
   res.json({ ok: true });
+});
+
+app.put("/api/queries/:id", (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "无效的 ID" });
+  try {
+    if (!updateTrackedQuery(id, req.body?.label, req.body?.query, req.userId || 0))
+      return res.status(404).json({ error: "追踪不存在" });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 app.get("/api/queries/:id", (req, res) => {

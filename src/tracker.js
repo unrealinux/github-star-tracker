@@ -2014,20 +2014,36 @@ function shouldSnapshot(repoId, stars, now) {
  * P4: 刷新所有被追踪的搜索/topic，并把结果写入成员表。
  * 每个查询只取 1 页（最多 100 个仓库），避免破坏搜索配额。
  */
-export async function refreshTrackedQueries({ token, perQuery = 100 } = {}) {
+export async function refreshTrackedQueries({ token, perQuery = 100, maxPages } = {}) {
   const queries = listTrackedQueries();
+  const pagesCap = Math.min(5, Math.max(1, Number(maxPages) || Number(process.env.QUERY_MAX_PAGES) || 2));
   let updated = 0,
     members = 0;
 
   for (const q of queries) {
     try {
-      const { items } = await searchTopRepos({
-        token,
-        query: q.query,
-        maxPages: 1,
-        perPage: Math.min(100, Math.max(1, Number(perQuery) || 100)),
-      });
+      // 支持多行：每行一条搜索语法，成员取并集（GitHub 搜索不支持 OR）
+      const lines = String(q.query || "")
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
       const now = new Date().toISOString();
+      const collected = [];
+      for (const line of lines) {
+        const { items } = await searchTopRepos({
+          token,
+          query: line,
+          maxPages: pagesCap,
+          perPage: Math.min(100, Math.max(1, Number(perQuery) || 100)),
+        });
+        collected.push(...items);
+        await sleep(150);
+      }
+      // 多行之间可能重叠，按 full_name 去重
+      const byName = new Map();
+      for (const r of collected) if (!byName.has(r.full_name)) byName.set(r.full_name, r);
+      const items = [...byName.values()];
+
       const idMap = getRepoIdMap(items.map((r) => r.full_name));
       const ids = [];
 
