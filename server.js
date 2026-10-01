@@ -62,6 +62,7 @@ import {
   getLanguageTrends,
   getRankChanges,
   getLeaderboard,
+  AVAILABLE_GROWTH_BASES,
   getSurges,
   listReposAt,
   getBadgeData,
@@ -193,6 +194,7 @@ const toNum = (v, fallback) => {
 
 // P1: 指标参数校验
 const METRIC_KEYS = AVAILABLE_METRICS.map((m) => m.key);
+const GROWTH_BASIS_KEYS = AVAILABLE_GROWTH_BASES.map((b) => b.key);
 const toMetric = (v) => (METRIC_KEYS.includes(v) ? v : "stars");
 
 // ── P5: 认证与会话 ─────────────────────────────────────────────────
@@ -900,10 +902,10 @@ app.get("/api/trends/rank", (req, res) => {
 
 // ── 🏆 排行榜（总星 Top N + 日均增长 Top N）─────────────────────
 app.get("/api/leaderboard", (req, res) => {
-  const window = ["day", "week", "month"].includes(req.query.window) ? req.query.window : "day";
+  const basis = GROWTH_BASIS_KEYS.includes(req.query.basis) ? req.query.basis : "avg7";
   const limit = Math.min(LEADERBOARD_MAX, Math.max(1, toNum(req.query.limit, 10)));
   const minStars = toNum(req.query.minStars, Number(getSetting("minStars", DEFAULT_MIN_STARS)) || 0);
-  res.json(getLeaderboard({ limit, window, minStars, metric: toMetric(req.query.metric) }));
+  res.json(getLeaderboard({ limit, basis, minStars, metric: toMetric(req.query.metric) }));
 });
 
 // ── 🚀 爆发榜（P0-1：增速加速度）───────────────────────────────

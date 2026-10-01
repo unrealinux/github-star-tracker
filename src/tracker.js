@@ -793,14 +793,27 @@ export function listLanguages() {
 }
 
 /**
- * 🏆 排行榜：同时返回「总星 Top N」与「日均增长 Top N」。
- * 日均增长用最近 7 天快照计算，比单次差值稳定。
+ * 🏆 排行榜：同时返回「总星 Top N」与「增长 Top N」。
+ * growthBasis（basis）：
+ *   avg7（默认）→ 近 7 天日均（星/天，稳定）
+ *   day / week / month → 对应窗口内的**原始新增**（星）
  */
-export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metric = "stars" } = {}) {
+const GROWTH_BASES = {
+  avg7: { label: "近7天日均", unit: "星/天", win: null },
+  day: { label: "近24h新增", unit: "星", win: "day" },
+  week: { label: "近7天新增", unit: "星", win: "week" },
+  month: { label: "近30天新增", unit: "星", win: "month" },
+};
+export const AVAILABLE_GROWTH_BASES = Object.entries(GROWTH_BASES).map(([key, v]) => ({
+  key,
+  label: v.label,
+}));
+
+export function getLeaderboard({ limit = 10, basis = "avg7", minStars = 0, metric = "stars" } = {}) {
   const now = Date.now();
-  const win = WINDOWS[window] ? window : "day";
   const metricDef = metricOf(metric);
   const field = metricDef.field;
+  const b = GROWTH_BASES[basis] || GROWTH_BASES.avg7;
   // 显式排序：不同后端行序不同，不排序会让并列名次的顺序随机
   const repoRows =
     minStars > 0
@@ -811,7 +824,9 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
   const rows = repoRows.map((r) => {
     const snaps = snapMap.get(r.id) || [];
     const value = r[field] || 0;
-    const { growth, label, avgDaily } = computeGrowth(value, snaps, now, win, field);
+    // 窗口原始增量：basis=avg7 时仍用于总星榜那行小字；窗口 basis 时就是排序值
+    const { growth, label, avgDaily } = computeGrowth(value, snaps, now, b.win || "day", field);
+    const basisValue = b.win === null ? (avgDaily ? Number(avgDaily.avg.toFixed(2)) : null) : growth;
     return {
       id: r.id,
       full_name: r.full_name,
@@ -824,6 +839,9 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
       growthLabel: label,
       avgDailyGrowth: avgDaily ? Number(avgDaily.avg.toFixed(2)) : null,
       avgSampleDays: avgDaily ? Number(avgDaily.days.toFixed(2)) : null,
+      basisValue,
+      basisLabel: b.label,
+      basisUnit: b.unit,
     };
   });
 
@@ -832,24 +850,26 @@ export function getLeaderboard({ limit = 10, window = "day", minStars = 0, metri
     .slice()
     .sort((a, b) => b.metricValue - a.metricValue || a.id - b.id)
     .slice(0, limit);
-  // 日均增长榜：样本跨度不足的仓库不参与（避免用几小时的差值外推出假高日增）
-  const growthCandidates = rows.filter((r) => r.avgDailyGrowth !== null);
-  const enoughSample = growthCandidates.filter((r) => (r.avgSampleDays || 0) >= MIN_GROWTH_SAMPLE_DAYS);
+  // 增长榜：样本跨度不足的仓库不参与（避免用几小时的差值外推出假高数值）
+  const candidates = rows.filter((r) => r.basisValue !== null && r.basisValue !== undefined);
+  const enoughSample = candidates.filter((r) => (r.avgSampleDays || 0) >= MIN_GROWTH_SAMPLE_DAYS);
   const byGrowth = enoughSample
     .slice()
-    .sort((a, b) => b.avgDailyGrowth - a.avgDailyGrowth || a.id - b.id)
+    .sort((a, b) => b.basisValue - a.basisValue || a.id - b.id)
     .slice(0, limit);
-  const excludedForSample = growthCandidates.length - enoughSample.length;
+  const excludedForSample = candidates.length - enoughSample.length;
 
   const sampleDays = rows.reduce((m, r) => Math.max(m, r.avgSampleDays || 0), 0);
   return {
     byStars,
     byGrowth,
     limit,
-    window,
+    basis,
     metric,
     metricLabel: metricDef.label,
     metricNoun: metricDef.noun,
+    basisLabel: b.label,
+    basisUnit: b.unit,
     sampleDays: Number(sampleDays.toFixed(2)),
     minSampleDays: MIN_GROWTH_SAMPLE_DAYS,
     excludedForSample,

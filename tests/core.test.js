@@ -641,6 +641,34 @@ describe("getLeaderboard 排行榜", () => {
     assert.equal(lb.minSampleDays, 0.5);
     assert.ok(lb.excludedForSample >= 1, "应报告被样本门槛挡下的数量");
   });
+
+  test("basis=day：按窗口内原始新增（星）排序，而不是日均", () => {
+    const ins = db.prepare(
+      "INSERT INTO repos (full_name, name, owner, url, language, stars, is_custom) VALUES (?,?,?,?,?,?,0)",
+    );
+    ins.run("d1/lowadd", "lowadd", "d1", "u", "Go", 10000);
+    ins.run("d1/highadd", "highadd", "d1", "u", "Go", 10000);
+    const idOf = (n) => db.prepare("SELECT id FROM repos WHERE full_name = ?").get(n).id;
+    const snap = db.prepare("INSERT INTO snapshots (repo_id, stars, captured_at) VALUES (?,?,?)");
+    const iso = (d) => new Date(Date.now() - d * 86400000).toISOString();
+    snap.run(idOf("d1/lowadd"), 9900, iso(1));
+    snap.run(idOf("d1/lowadd"), 10000, iso(0)); // 近24h +100
+    snap.run(idOf("d1/highadd"), 9100, iso(1));
+    snap.run(idOf("d1/highadd"), 10000, iso(0)); // 近24h +900
+
+    const lb = getLeaderboard({ limit: 50, basis: "day", minStars: 0 });
+    assert.equal(lb.basis, "day");
+    assert.equal(lb.basisUnit, "星");
+    const high = lb.byGrowth.find((r) => r.full_name === "d1/highadd");
+    const low = lb.byGrowth.find((r) => r.full_name === "d1/lowadd");
+    assert.equal(high.basisValue, 900, "basis=day 应给窗口内的原始新增（星）");
+    assert.equal(low.basisValue, 100);
+    assert.ok(lb.byGrowth.indexOf(high) < lb.byGrowth.indexOf(low), "+900 应排在 +100 前面");
+
+    // 默认仍为近7天日均
+    assert.equal(getLeaderboard({ limit: 1 }).basis, "avg7");
+    assert.equal(getLeaderboard({ limit: 1 }).basisUnit, "星/天");
+  });
 });
 
 describe("getSurges 爆发检测（P0-1）", () => {

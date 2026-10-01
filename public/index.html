@@ -382,10 +382,13 @@
         <summary>ℹ️ 这个页面怎么算的</summary>
         <ul>
           <li>
-            左栏：<b>总星数</b> Top N；右栏：<b>日均新增</b> Top N。N 可在右上切换（上限由
+            左栏：<b>总星数</b> Top N；右栏：<b>增长</b> Top N。N 可在右上切换（上限由
             <code>LEADERBOARD_MAX</code> 控制，默认 200）。
           </li>
-          <li>日均新增用<b>近 7 天快照</b>求平均（比单次差值稳定），窗口可切换。</li>
+          <li>
+            右栏「增长排行」口径可切换：<b>近7天日均</b>（默认，稳，单位 星/天）/ <b>近24h 新增</b> /
+            <b>近7天 新增</b> / <b>近30天 新增</b>（后三者是窗口内<b>原始新增</b>，单位 星）。
+          </li>
           <li>并列名次用仓库 id 打破，保证 SQLite / PostgreSQL 结果一致。</li>
           <li>下方<b>全站星标榜</b>列出全部仓库的完整名次（<b>不受「最低星数」筛选</b>，分页浏览）。</li>
           <li>
@@ -393,7 +396,7 @@
             星的新仓库会进入采集，从而参与排行。
           </li>
           <li>
-            日均新增要求<b>样本跨度 ≥ 0.5 天</b>；不足的仓库只留在总星榜（每行标注「样本 X 天」，不足 1 天带
+            增长榜要求<b>样本跨度 ≥ 0.5 天</b>；不足的仓库只留在总星榜（每行标注「样本 X 天」，不足 1 天带
             ⚠️）。
           </li>
         </ul>
@@ -421,11 +424,12 @@
             </select>
           </label>
           <label
-            >增速窗口
-            <select id="lb-window">
-              <option value="day">近24h</option>
-              <option value="week">近7天</option>
-              <option value="month">近30天</option>
+            >增长口径
+            <select id="lb-basis">
+              <option value="avg7" selected>近7天日均（稳）</option>
+              <option value="day">近24h 新增</option>
+              <option value="week">近7天 新增</option>
+              <option value="month">近30天 新增</option>
             </select>
           </label>
         </div>
@@ -439,7 +443,7 @@
           <div id="lb-by-stars" class="lb-list"></div>
         </div>
         <div class="lb-col">
-          <h3 class="lb-col-title growth">🚀 日均新增排行</h3>
+          <h3 class="lb-col-title growth">🚀 增长排行</h3>
           <div id="lb-by-growth" class="lb-list"></div>
         </div>
       </div>

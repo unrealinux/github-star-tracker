@@ -1167,7 +1167,7 @@ function lbItem(r, rank, mode) {
     mode === "stars"
       ? `<div class="lb-value">★ ${fmt(r.stars)}</div>
        <div class="lb-sub">${r.growth != null ? (r.growth >= 0 ? "+" : "") + fmt(r.growth) + " " + escapeHtml(r.growthLabel) : "待积累"}</div>`
-      : `<div class="lb-value" style="color:${r.avgDailyGrowth >= 0 ? "var(--green)" : "var(--red)"}">${r.avgDailyGrowth >= 0 ? "+" : ""}${r.avgDailyGrowth} <small>星/天</small></div>
+      : `<div class="lb-value" style="color:${(r.basisValue ?? 0) >= 0 ? "var(--green)" : "var(--red)"}">${(r.basisValue ?? 0) >= 0 ? "+" : ""}${fmt(r.basisValue)} <small>${escapeHtml(r.basisUnit || "星")}</small></div>
        <div class="lb-sub">★ ${fmt(r.stars)} · 样本 ${(Number(r.avgSampleDays) || 0).toFixed(2)} 天${(Number(r.avgSampleDays) || 0) < 1 ? " ⚠️" : ""}</div>`;
   const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
   return `<div class="lb-item" data-id="${r.id}">
@@ -1183,26 +1183,27 @@ function lbItem(r, rank, mode) {
 async function loadLeaderboard() {
   try {
     const limit = $("lb-limit")?.value || 10;
-    const win = $("lb-window")?.value || "day";
+    const basis = $("lb-basis")?.value || "avg7";
     const metric = $("lb-metric")?.value || "stars";
-    const data = await fetchJson(`/api/leaderboard?limit=${limit}&window=${win}&metric=${metric}`);
+    const data = await fetchJson(`/api/leaderboard?limit=${limit}&basis=${basis}&metric=${metric}`);
 
     // 采样跨度提示（避免把几分钟的数据外推成“每天”）
     const notice = $("lb-notice");
     const d = data.sampleDays || 0;
+    const basisLabel = data.basisLabel || "近7天日均";
     const excl = Number(data.excludedForSample) || 0;
     const exclNote = excl
       ? `<br>已从增长榜隐藏 <b>${excl}</b> 个样本跨度不足 ${data.minSampleDays} 天的仓库（仍保留在总星榜，等积累够再进）。`
       : "";
     if (d < 1) {
       notice.className = "lb-notice warn";
-      notice.innerHTML = `⚠️ 当前快照采样仅 <b>${(d * 24).toFixed(1)} 小时</b>，日均增长为初步估算。建议积累 <b>7 天</b> 以上数据后参考。${exclNote}`;
+      notice.innerHTML = `⚠️ 当前快照采样仅 <b>${(d * 24).toFixed(1)} 小时</b>，${escapeHtml(basisLabel)}为初步估算。建议积累 <b>7 天</b> 以上数据后参考。${exclNote}`;
     } else if (d < 7) {
       notice.className = "lb-notice";
-      notice.innerHTML = `ℹ️ 快照采样跨度 <b>${d.toFixed(1)} 天</b>，日均增长已具参考性（满 7 天更准）。${exclNote}`;
+      notice.innerHTML = `ℹ️ 快照采样跨度 <b>${d.toFixed(1)} 天</b> · 增长口径：<b>${escapeHtml(basisLabel)}</b>（满 7 天更准）。${exclNote}`;
     } else {
       notice.className = "lb-notice ok";
-      notice.innerHTML = `✅ 快照采样跨度 <b>${d.toFixed(1)} 天</b>，日均增长基于近 7 天数据计算。${exclNote}`;
+      notice.innerHTML = `✅ 快照采样跨度 <b>${d.toFixed(1)} 天</b> · 增长口径：<b>${escapeHtml(basisLabel)}</b>。${exclNote}`;
     }
 
     const starsEl = $("lb-by-stars");
@@ -2400,7 +2401,7 @@ on("cleanup-btn", "click", async () => {
 on("trend-window", "change", loadLanguageTrends);
 on("rank-window", "change", loadRankChanges);
 on("lb-limit", "change", loadLeaderboard);
-on("lb-window", "change", loadLeaderboard);
+on("lb-basis", "change", loadLeaderboard);
 on("lb-metric", "change", loadLeaderboard);
 on("fr-prev", "click", () => {
   if (frPage > 1) {
