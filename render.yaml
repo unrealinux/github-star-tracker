@@ -1,0 +1,27 @@
+# Render Blueprint —— 见 https://render.com/docs/blueprint-spec
+# 用法：Render → New + → Blueprint → 选本仓库 → Apply
+databases:
+  - name: gst-db
+    databaseName: gst
+    user: gst
+    plan: free # 免费库 30 天后过期；长期用改成 starter
+
+services:
+  - type: web
+    name: github-star-tracker
+    runtime: docker
+    plan: free # 免费实例 15 分钟无请求会休眠；长期用改成 starter
+    healthCheckPath: /health
+    envVars:
+      - key: DB_DRIVER
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gst-db
+          property: connectionString
+      - key: TRUST_PROXY
+        value: "true"
+      - key: API_KEY
+        generateValue: true
+      - key: GITHUB_TOKEN
+        sync: false # 部署时在 Render 控制台手动填
