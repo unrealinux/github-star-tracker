@@ -14,9 +14,10 @@ COPY public ./public
 COPY server.js ./
 COPY .env.example ./
 
-# 数据目录（挂载卷）
+# 数据目录（挂载卷）。注意：不加 VOLUME 指令——Railway 不支持
+# Dockerfile 的 VOLUME，需用 Railway 自身的 Volume 机制（Railway 的
+# Postgres 服务已自带卷；web 服务在 DB_DRIVER=postgres 模式下不落本地盘）
 RUN mkdir -p /app/data
-VOLUME ["/app/data"]
 
 ENV NODE_ENV=production
 ENV PORT=3001
