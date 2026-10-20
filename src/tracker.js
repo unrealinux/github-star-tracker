@@ -28,6 +28,8 @@ const SNAPSHOT_WINDOW_DAYS = 35;
 const SNAPSHOT_PER_REPO_CAP = 400;
 // 日均增长榜要求的最小样本跨度（天）：太短的样本会把「几小时的差值」外推成夸张的日增
 const MIN_GROWTH_SAMPLE_DAYS = 0.5;
+// 基础发现：每日按 stars 抓取的页数（每页 100）；GitHub 搜索最多 10 页 = 1000 条
+const DISCOVERY_MAX_PAGES = Math.max(1, Math.min(10, Number(process.env.DISCOVERY_MAX_PAGES) || 10));
 
 // ── 指标定义（P1：多指标）────────────────────────────────────────
 const METRICS = {
@@ -332,7 +334,7 @@ async function collectTrending({ token }) {
 
 export async function refresh({ minStars, token }) {
   const query = getSetting("searchQuery", "") || "";
-  const { items, rate } = await searchTopRepos({ minStars, token, query });
+  const { items, rate } = await searchTopRepos({ minStars, token, query, maxPages: DISCOVERY_MAX_PAGES });
 
   // 叠加「新且热」发现源：让近期冒头的新仓库进入采集，从而出现在日均新增排行里
   const trending = await collectTrending({ token });
