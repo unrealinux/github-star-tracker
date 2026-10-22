@@ -400,7 +400,14 @@ npm run format      # 一键格式化
 │   ├── db.js              # 数据库 schema、迁移、索引、CRUD
 │   ├── dbdriver/          # 驱动层：sqlite / postgres（同步桥）+ SQL 方言转换 + PG 迁移
 │   ├── github.js          # GitHub API 封装（重试、配额解析）
-│   ├── tracker.js         # 采集与计算核心
+│   ├── tracker.js         # tracker 门面（转发下面各模块，保持导出不变）
+│   ├── collect.js         # 采集写路径：refresh / 自定义 / 生态追刷新（事务 + 告警触发）
+│   ├── alerts.js          # 告警引擎：规则评估（纯函数）、落库与推送
+│   ├── snapshots.js       # 快照读取：有界加载、时点查询、窗口基线、按天聚合
+│   ├── growth.js          # 增长纯函数：动量 / 日增 / 日均 / 预测 / 排序
+│   ├── analytics.js       # 只读榜单与检测：列表 / 排行 / 异常 / 相似度 / 回测
+│   ├── indices.js         # 指数与生态聚合
+│   ├── metrics.js         # 指标与口径常量（METRICS / GROWTH_BASES / MILESTONES）
 │   ├── windows.js         # 时间窗口 / 增长计算共享定义（tracker+external 复用）
 │   ├── external.js        # 外部指标采集与计算（P3）
 │   ├── sources.js         # 数据源插件（npm/PyPI/Docker/crates）
@@ -408,8 +415,13 @@ npm run format      # 一键格式化
 │   ├── backfill.js        # 历史回填（stargazers）
 │   ├── digest.js          # 每日摘要构建与发送
 │   ├── auth.js            # 口令哈希与会话令牌（scrypt）
+│   ├── auth-middleware.js # 会话 / API Key / Feed Token 解析中间件
+│   ├── config.js          # 环境配置的集中读取点（token、cron、上限等）
+│   ├── http.js            # HTTP 共享工具（参数解析、限流、安全响应头）
+│   ├── repo-thresholds.js # 每仓库告警阈值存取
 │   ├── notify.js          # 多渠道推送
 │   ├── webpush.js         # Web Push（VAPID + aes128gcm，零依赖）
+│   ├── routes/            # 路由按领域拆分（routes/auth.js、routes/repos.js…）
 │   ├── scheduler.js       # 定时任务、刷新锁与摘要调度
 │   └── logger.js          # 结构化日志
 ├── scripts/
@@ -422,7 +434,7 @@ npm run format      # 一键格式化
 │   ├── migration.test.js  # SQLite 旧库升级回归
 │   ├── pg_migration.test.js # PostgreSQL 迁移回归
 │   └── driver.test.js     # PostgreSQL 驱动错误上报回归
-├── server.js              # 入口与路由
+├── server.js              # 入口与路由组装（路由实现在 src/routes/）
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
