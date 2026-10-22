@@ -382,16 +382,23 @@ npm run format      # 一键格式化
 
 覆盖：增长计算、过滤/分页、排名变化、预测、数据库操作、告警规则、多渠道编码、回填、导入导出、保存视图，以及 `tests/api.test.js` 中的 HTTP 路由集成测试（真启动 Express + fetch）。
 
-`tests/frontend/` 是前端测试（真实 Chrome 无头 + 原生 CDP，零依赖）：`smoke.test.js` 断言 `app.js` 真的跑起来、无 JS 异常 / CSP 违规 / 资源加载失败，并做一次无障碍扫描；`interactions.test.js` 跑真实交互（命令面板、主题、Tab、详情弹层与收藏、筛选、焦点陷阱）；`auth.test.js` 跑登录/多用户流程（注册首个管理员、刷新保持登录、登出转登录、错误口令被拦）。用 `npm run test:frontend` 单独跑（不在 `npm test` 的通知范围内）；CI 有独立作业用 `browser-actions/setup-chrome` 装上 Chrome 真跑。
+`tests/frontend/` 是前端测试（真实 Chrome 无头 + 原生 CDP，零依赖）：`smoke.test.js` 断言前端脚本真的跑起来、无 JS 异常 / CSP 违规 / 资源加载失败，并做一次无障碍扫描；`interactions.test.js` 跑真实交互（命令面板、主题、Tab、详情弹层与收藏、筛选、焦点陷阱）；`auth.test.js` 跑登录/多用户流程（注册首个管理员、刷新保持登录、登出转登录、错误口令被拦）。用 `npm run test:frontend` 单独跑（不在 `npm test` 的通知范围内）；CI 有独立作业用 `browser-actions/setup-chrome` 装上 Chrome 真跑。
 
 要在真实 PostgreSQL 上验证（起库、每文件独立库、迁移后两端对拍、预期差异与已知坑）：见 [`docs/verification-checklist.md`](docs/verification-checklist.md)。
 
 ## 📁 项目结构
 
 ```
-├── public/                # 前端（无构建）
+├── public/                # 前端（无构建，多个 <script> 顺序加载共享全局命名空间）
 │   ├── index.html
-│   ├── app.js
+│   ├── js/
+│   │   ├── core.js        # 基础层：全局状态、fetchJson/API 会话、格式化 helpers
+│   │   ├── charts.js      # 图表：折线（对数轴/hover）/热力图/柱状图/sparkline/预测块
+│   │   ├── layout.js      # Tab 切换（方向键导航）、弹层焦点陷阱
+│   │   ├── repos.js       # 仓库列表/详情/收藏/自定义/导出/筛选视图
+│   │   ├── boards.js      # 内容页：排榜/爆发/回放/对比/信号/回测/指数/生态
+│   │   ├── settings.js    # 设置页/统计面板/告警/Web Push/多用户
+│   │   └── main.js        # 全部事件绑定 + loadAll 编排 + ⌘K + 启动序列
 │   ├── styles.css
 │   ├── manifest.webmanifest
 │   ├── icon.svg

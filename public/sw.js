@@ -2,8 +2,21 @@
  * 策略：同源静态资源「网络优先 + 缓存兜底」，离线时仍可打开界面。
  * 动态端点（/api、徽章、指标、健康检查）一律不缓存。
  */
-const CACHE = "gst-shell-v2";
-const SHELL = ["/", "/index.html", "/app.js", "/styles.css", "/icon.svg", "/manifest.webmanifest"];
+const CACHE = "gst-shell-v3";
+const SHELL = [
+  "/",
+  "/index.html",
+  "/styles.css",
+  "/icon.svg",
+  "/manifest.webmanifest",
+  "/js/core.js",
+  "/js/charts.js",
+  "/js/layout.js",
+  "/js/repos.js",
+  "/js/boards.js",
+  "/js/settings.js",
+  "/js/main.js",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

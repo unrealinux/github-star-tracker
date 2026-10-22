@@ -1239,6 +1239,13 @@
       </div>
     </div>
 
-    <script src="/app.js"></script>
+    <!-- 按依赖顺序加载：core(基础) → charts(图表) → layout(布局) → repos(列表) → boards(内容页) → settings(设置) → main(事件/启动) -->
+    <script src="/js/core.js"></script>
+    <script src="/js/charts.js"></script>
+    <script src="/js/layout.js"></script>
+    <script src="/js/repos.js"></script>
+    <script src="/js/boards.js"></script>
+    <script src="/js/settings.js"></script>
+    <script src="/js/main.js"></script>
   </body>
 </html>
