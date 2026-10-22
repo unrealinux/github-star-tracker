@@ -1,3 +1,4 @@
+import cron from "node-cron";
 import {
   db,
   getSetting,
@@ -7,6 +8,7 @@ import {
   getRetentionDays,
   cleanupOldSnapshots,
   rollupOldSnapshots,
+  createBackup,
 } from "./db.js";
 import { refresh, refreshCustomRepos, refreshTrackedQueries, setNotify } from "./tracker.js";
 import { refreshExternalMetrics } from "./external.js";
@@ -14,6 +16,7 @@ import { sendAlertWebhook } from "./notify.js";
 import { runDigest } from "./digest.js";
 import { getLastQuota } from "./github.js";
 import { logger } from "./logger.js";
+import { TOKEN, CRON, POLL_TICK, cronValid } from "./config.js";
 
 // 告警 -> Webhook
 setNotify(sendAlertWebhook);
@@ -160,4 +163,67 @@ export async function checkDueDigest() {
 
 export function getScheduleState() {
   return { ...state, running: _running };
+}
+
+// ── 定时任务（仅作为主进程运行时启用，便于测试时导入 server 不重复触发）──
+let cronTask = null;
+let lastPollAt = 0;
+
+export function getCronTask() {
+  return cronTask;
+}
+
+/**
+ * 注册三个定时任务：
+ *  1. CRON_SCHEDULE 定时全量刷新
+ *  2. 每分钟轮询：自动刷新间隔 + 摘要到点检查
+ *  3. 每日 03:00 自动备份 / 03:30 清理 + 降采样（备份之后）
+ */
+export function startCronJobs() {
+  if (cronValid) {
+    cronTask = cron.schedule(CRON, () => {
+      runScheduledRefresh({ token: TOKEN }).catch((e) => logger.error("定时刷新异常", { error: e.message }));
+    });
+  }
+
+  cron
+    .schedule(POLL_TICK, () => {
+      const minutes = Number(getSetting("autoPollMinutes", 0)) || 0;
+      if (minutes > 0 && Date.now() - lastPollAt >= minutes * 60 * 1000) {
+        lastPollAt = Date.now();
+        runScheduledRefresh({ token: TOKEN }).catch((e) =>
+          logger.error("轮询刷新异常", { error: e.message }),
+        );
+      }
+      checkDueDigest().catch((e) => logger.error("摘要检查异常", { error: e.message }));
+    })
+    .unref?.();
+
+  // 每日自动备份（保留最近 5 份），可在设置中关闭
+  try {
+    cron.schedule("0 3 * * *", () => {
+      if (getSetting("autoBackup", "1") !== "1") return;
+      try {
+        const { file, kind } = createBackup();
+        logger.info("自动备份完成", { file: file.split(/[\\/]/).pop(), kind });
+      } catch (e) {
+        logger.warn("自动备份失败", { error: e.message });
+      }
+    });
+  } catch (e) {
+    logger.warn("自动备份任务未启用", { error: e.message });
+  }
+
+  // 每日清理 + 降采样（备份之后）
+  try {
+    cron.schedule("30 3 * * *", () => {
+      try {
+        runCleanup();
+      } catch (e) {
+        logger.warn("清理任务失败", { error: e.message });
+      }
+    });
+  } catch (e) {
+    logger.warn("清理任务未启用", { error: e.message });
+  }
 }
