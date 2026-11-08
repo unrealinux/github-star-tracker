@@ -21,18 +21,18 @@
     "migrate:postgres": "node scripts/migrate-to-postgres.mjs"
   },
   "dependencies": {
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "node-cron": "^4.6.0"
   },
   "optionalDependencies": {
-    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite": "^0.5.15",
     "pg": "^8.23.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.13.0",
-    "prettier": "^3.9.9"
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10"
   }
 }
